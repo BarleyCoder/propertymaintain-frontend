@@ -200,7 +200,6 @@ const WorkHistory = () => {
                         </div>
                   </div>
             </div>
-            </div>
       );
 };
 
