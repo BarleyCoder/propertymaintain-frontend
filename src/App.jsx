@@ -1,7 +1,8 @@
 import Profile from './pages/Profile';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes} from 'react-router-dom';
 import AuthProvider from './context/AuthProvider';
 import ProtectedRoute from './components/ProtectedRoute';
+import Landing from "./pages/LandingPage";
 
 // Auth Pages
 import Login from './pages/Login';
@@ -33,8 +34,7 @@ function App() {
         <AuthProvider>
             <Router>
                 <Routes>
-                    {/* Default Route */}
-                    <Route path="/" element={<Navigate to="/login" />} />
+                    <Route path="/" element={<Landing />} />
 
                     {/* Auth Routes */}
                     <Route path="/login" element={<Login />} />
