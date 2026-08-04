@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-    baseURL: 'https://propertymaintain-backend-production.up.railway.app',
+    baseURL: 'https://propertymaintain-backend-production.up.railway.app/api', // Added /api
 });
 
 API.interceptors.request.use((config) => {

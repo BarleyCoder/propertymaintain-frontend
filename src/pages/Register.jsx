@@ -22,10 +22,9 @@ const Register = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
 
         if (e.target.name === 'password') {
-            const val = e.target.value;
-            if (val.length > 0 && val.length < 8) {
+            if (e.target.value.length > 0 && e.target.value.length < 8) {
                 setPasswordHint('weak');
-            } else if (val.length >= 8) {
+            } else if (e.target.value.length >= 8) {
                 setPasswordHint('strong');
             } else {
                 setPasswordHint('');
@@ -51,14 +50,11 @@ const Register = () => {
         setLoading(true);
 
         try {
-            // Capitalize role to match backend Mongoose enum ('Tenant', 'Landlord', 'Technician')
-            const formattedRole = formData.role.charAt(0).toUpperCase() + formData.role.slice(1);
-
             await API.post('/api/auth/register', {
-                fullName: formData.full_name,   // Mapped to match backend User model
+                full_name: formData.full_name,
                 email: formData.email,
-                phone: formData.phone_number,   // Mapped to match backend User model
-                role: formattedRole,            // Mapped to match backend User enum
+                phone_number: formData.phone_number,
+                role: formData.role,
                 password: formData.password
             });
 
@@ -79,12 +75,10 @@ const Register = () => {
                 <div className="flex justify-between items-center px-6 py-4 max-w-[1280px] mx-auto h-16">
                     <div className="text-xl font-bold text-[#005bbf]">PropMaintain</div>
                     <div className="flex items-center gap-4">
-                        <Link className="text-[#005bbf] font-bold px-4 py-2 hover:opacity-80" to="/login">
-                            Login
-                        </Link>
-                        <Link to="/login" className="bg-[#1a73e8] text-white font-bold px-6 py-2 rounded-lg hover:opacity-90 inline-block text-center">
+                        <Link className="text-[#005bbf] font-bold px-4 py-2 hover:opacity-80" to="/login">Login</Link>
+                        <button className="bg-[#1a73e8] text-white font-bold px-6 py-2 rounded-lg hover:opacity-90">
                             Get Started
-                        </Link>
+                        </button>
                     </div>
                 </div>
             </header>
@@ -113,14 +107,14 @@ const Register = () => {
 
                             {/* Error Message */}
                             {error && (
-                                <div className="bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
+                                <div className="bg-red-100 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
                                     {error}
                                 </div>
                             )}
 
                             {/* Success Message */}
                             {success && (
-                                <div className="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
+                                <div className="bg-green-100 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
                                     {success}
                                 </div>
                             )}
@@ -129,13 +123,12 @@ const Register = () => {
 
                                 {/* Full Name */}
                                 <div className="space-y-1">
-                                    <label htmlFor="full_name" className="text-xs font-semibold text-[#414754] uppercase tracking-wide">
+                                    <label className="text-xs font-semibold text-[#414754] uppercase tracking-wide">
                                         Full Name
                                     </label>
                                     <div className="relative">
                                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#727785]">person</span>
                                         <input
-                                            id="full_name"
                                             className="w-full pl-10 pr-4 py-3 bg-white border border-[#c1c6d6] rounded-lg text-sm focus:border-[#005bbf] focus:ring-1 focus:ring-[#005bbf] outline-none"
                                             name="full_name"
                                             placeholder="John Oladele"
@@ -149,13 +142,12 @@ const Register = () => {
 
                                 {/* Email */}
                                 <div className="space-y-1">
-                                    <label htmlFor="email" className="text-xs font-semibold text-[#414754] uppercase tracking-wide">
+                                    <label className="text-xs font-semibold text-[#414754] uppercase tracking-wide">
                                         Email Address
                                     </label>
                                     <div className="relative">
                                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#727785]">mail</span>
                                         <input
-                                            id="email"
                                             className="w-full pl-10 pr-4 py-3 bg-white border border-[#c1c6d6] rounded-lg text-sm focus:border-[#005bbf] focus:ring-1 focus:ring-[#005bbf] outline-none"
                                             name="email"
                                             placeholder="name@example.com"
@@ -170,13 +162,12 @@ const Register = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {/* Phone Number */}
                                     <div className="space-y-1">
-                                        <label htmlFor="phone_number" className="text-xs font-semibold text-[#414754] uppercase tracking-wide">
+                                        <label className="text-xs font-semibold text-[#414754] uppercase tracking-wide">
                                             Phone Number
                                         </label>
                                         <div className="relative">
                                             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#727785]">call</span>
                                             <input
-                                                id="phone_number"
                                                 className="w-full pl-10 pr-4 py-3 bg-white border border-[#c1c6d6] rounded-lg text-sm focus:border-[#005bbf] focus:ring-1 focus:ring-[#005bbf] outline-none"
                                                 name="phone_number"
                                                 placeholder="+234..."
@@ -190,13 +181,12 @@ const Register = () => {
 
                                     {/* Role */}
                                     <div className="space-y-1">
-                                        <label htmlFor="role" className="text-xs font-semibold text-[#414754] uppercase tracking-wide">
+                                        <label className="text-xs font-semibold text-[#414754] uppercase tracking-wide">
                                             Role
                                         </label>
                                         <div className="relative">
                                             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#727785]">groups</span>
                                             <select
-                                                id="role"
                                                 className="w-full pl-10 pr-8 py-3 bg-white border border-[#c1c6d6] rounded-lg text-sm focus:border-[#005bbf] focus:ring-1 focus:ring-[#005bbf] outline-none appearance-none"
                                                 name="role"
                                                 value={formData.role}
@@ -212,13 +202,12 @@ const Register = () => {
 
                                 {/* Password */}
                                 <div className="space-y-1">
-                                    <label htmlFor="password" className="text-xs font-semibold text-[#414754] uppercase tracking-wide">
+                                    <label className="text-xs font-semibold text-[#414754] uppercase tracking-wide">
                                         Password
                                     </label>
                                     <div className="relative">
                                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#727785]">lock</span>
                                         <input
-                                            id="password"
                                             className="w-full pl-10 pr-4 py-3 bg-white border border-[#c1c6d6] rounded-lg text-sm focus:border-[#005bbf] focus:ring-1 focus:ring-[#005bbf] outline-none"
                                             name="password"
                                             placeholder="••••••••"
@@ -241,13 +230,12 @@ const Register = () => {
 
                                 {/* Confirm Password */}
                                 <div className="space-y-1">
-                                    <label htmlFor="confirm_password" className="text-xs font-semibold text-[#414754] uppercase tracking-wide">
+                                    <label className="text-xs font-semibold text-[#414754] uppercase tracking-wide">
                                         Confirm Password
                                     </label>
                                     <div className="relative">
                                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#727785]">shield</span>
                                         <input
-                                            id="confirm_password"
                                             className="w-full pl-10 pr-4 py-3 bg-white border border-[#c1c6d6] rounded-lg text-sm focus:border-[#005bbf] focus:ring-1 focus:ring-[#005bbf] outline-none"
                                             name="confirm_password"
                                             placeholder="••••••••"
@@ -296,7 +284,7 @@ const Register = () => {
             <footer className="w-full bg-[#f1f4fa] border-t border-[#c1c6d6]">
                 <div className="flex justify-between items-center px-6 py-6 max-w-[1280px] mx-auto">
                     <span className="font-bold text-[#181c20]">PropMaintain</span>
-                    <p className="text-xs text-[#414754]">© 2026 PropMaintain. All rights reserved.</p>
+                    <p className="text-xs text-[#414754]">© 2024 PropMaintain. All rights reserved.</p>
                 </div>
             </footer>
         </div>
