@@ -19,7 +19,10 @@ const Login = () => {
         setError('');
 
         try {
-            const response = await API.post('/api/auth/login', { email, password });
+            const response = await API.post('/auth/login', {
+                email,
+                password,
+            });
             const { token, user } = response.data;
 
             login(user, token);
@@ -112,7 +115,7 @@ const Login = () => {
                             {/* Remember Me & Forgot Password */}
                             <div className="flex items-center justify-between">
                                 <label className="flex items-center gap-2 cursor-pointer">
-                                    <input className="w-4 h-4 rounded border-[#c1c6d6] text-[#005bbf]" type="checkbox"/>
+                                    <input className="w-4 h-4 rounded border-[#c1c6d6] text-[#005bbf]" type="checkbox" />
                                     <span className="text-xs font-semibold text-[#414754]">Remember Me</span>
                                 </label>
                                 <a className="text-xs font-semibold text-[#005bbf] hover:underline" href="#">
@@ -162,7 +165,7 @@ const Login = () => {
                             </div>
                         </div>
                     </div>
-                    <span className="material-symbols-outlined text-white/20" style={{fontSize: '300px'}}>apartment</span>
+                    <span className="material-symbols-outlined text-white/20" style={{ fontSize: '300px' }}>apartment</span>
                 </section>
             </main>
         </div>
