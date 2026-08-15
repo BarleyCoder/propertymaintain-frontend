@@ -11,8 +11,8 @@ const Technicians = () => {
 
     const fetchTechnicians = useCallback(async () => {
         try {
-            const response = await API.get('/api/auth/users');
-            const techs = response.data.users.filter(u => u.role === 'technician');
+            const response = await API.get('/api/technician/landlord/technician-history');
+            const techs = response.data.technicians || [];
             setTechnicians(techs);
         } catch (error) {
             console.error('Error fetching technicians:', error);
@@ -25,11 +25,12 @@ const Technicians = () => {
         fetchTechnicians();
     }, [fetchTechnicians]);
 
-    const filteredTechnicians = technicians.filter(t =>
-        searchTerm === '' ||
-        t.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredTechnicians = technicians.filter(entry => {
+        const t = entry.technician || {};
+        const name = (t.full_name || '').toLowerCase();
+        const email = (t.email || '').toLowerCase();
+        return searchTerm === '' || name.includes(searchTerm.toLowerCase()) || email.includes(searchTerm.toLowerCase());
+    });
 
     return (
         <div className="flex h-screen overflow-hidden bg-[#f7f9ff]">
@@ -85,37 +86,40 @@ const Technicians = () => {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {filteredTechnicians.map(tech => (
-                                    <div key={tech.id} className="bg-white border border-[#c1c6d6] rounded-xl p-6 shadow-sm hover:shadow-md transition-all">
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-14 h-14 rounded-full bg-[#d8e2ff] flex items-center justify-center text-[#005bbf] font-bold text-xl">
-                                                    {tech.full_name.charAt(0)}
+                                {filteredTechnicians.map(entry => {
+                                    const tech = entry.technician || {};
+                                    return (
+                                        <div key={tech._id} className="bg-white border border-[#c1c6d6] rounded-xl p-6 shadow-sm hover:shadow-md transition-all">
+                                            <div className="flex items-start justify-between mb-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-14 h-14 rounded-full bg-[#d8e2ff] flex items-center justify-center text-[#005bbf] font-bold text-xl">
+                                                        {tech.full_name?.charAt(0) || 'T'}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-[#181c20]">{tech.full_name}</p>
+                                                        <span className="text-xs font-semibold text-[#005bbf] bg-[#d8e2ff]/30 px-2 py-0.5 rounded">Technician</span>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-bold text-[#181c20]">{tech.full_name}</p>
-                                                    <span className="text-xs font-semibold text-[#005bbf] bg-[#d8e2ff]/30 px-2 py-0.5 rounded">
-                                                        Technician
-                                                    </span>
-                                                </div>
+                                                <div className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">{entry.totalAssigned} jobs</div>
                                             </div>
-                                            <div className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">
-                                                Active
-                                            </div>
-                                        </div>
 
-                                        <div className="space-y-2 border-t border-[#c1c6d6] pt-4">
-                                            <div className="flex items-center gap-2">
-                                                <span className="material-symbols-outlined text-[#727785] text-sm">mail</span>
-                                                <span className="text-xs text-[#414754] truncate">{tech.email}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="material-symbols-outlined text-[#727785] text-sm">call</span>
-                                                <span className="text-xs text-[#414754]">{tech.phone_number || 'N/A'}</span>
+                                            <div className="space-y-2 border-t border-[#c1c6d6] pt-4">
+                                                <div className="text-sm text-[#414754]">
+                                                    <strong>Specializations:</strong> {(entry.specializations || []).join(', ') || 'N/A'}
+                                                </div>
+                                                <div className="text-sm text-[#414754]">
+                                                    <strong>Years Experience:</strong> {entry.yearsOfExperience || 0}
+                                                </div>
+                                                <div className="text-sm text-[#414754]">
+                                                    <strong>Avg Rating:</strong> {entry.averageRating?.toFixed ? entry.averageRating.toFixed(1) : (entry.averageRating || 0)}
+                                                </div>
+                                                <div className="text-sm text-[#414754]">
+                                                    <strong>Completed:</strong> {entry.totalCompleted || 0}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

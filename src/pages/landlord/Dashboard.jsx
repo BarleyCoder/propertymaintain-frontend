@@ -2,12 +2,34 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import useAuth from '../../context/useAuth';
 import LandlordSidebar from '../../components/LandlordSidebar';
+import StatusMessage from '../../components/StatusMessage';
 import API from '../../utils/axios';
 
 const LandlordDashboard = () => {
     const { user } = useAuth();
     const [requests, setRequests] = useState([]);
+    const [properties, setProperties] = useState([]);
+    const [joinRequests, setJoinRequests] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showAddProperty, setShowAddProperty] = useState(false);
+    const [addPropertyLoading, setAddPropertyLoading] = useState(false);
+    const [addPropertySuccess, setAddPropertySuccess] = useState('');
+    const [addPropertyError, setAddPropertyError] = useState('');
+    const [createdPropertyCode, setCreatedPropertyCode] = useState('');
+    const [statusMessage, setStatusMessage] = useState({ type: 'info', text: '' });
+    const [updatingRequestId, setUpdatingRequestId] = useState(null);
+    const [newProperty, setNewProperty] = useState({
+        name: '',
+        property_type: '',
+        address: '',
+        city: '',
+        state: '',
+        country: '',
+        bedrooms: '',
+        bathrooms: '',
+        description: '',
+        postal_code: ''
+    });
 
     const fetchRequests = useCallback(async () => {
         try {
@@ -20,9 +42,72 @@ const LandlordDashboard = () => {
         }
     }, []);
 
+    const fetchProperties = useCallback(async () => {
+        try {
+            const res = await API.get('/api/properties');
+            setProperties(res.data.properties || []);
+        } catch (err) {
+            console.error('Error fetching properties:', err);
+        }
+    }, []);
+
+    const fetchJoinRequests = useCallback(async () => {
+        try {
+            const res = await API.get('/api/properties/join/landlord');
+            setJoinRequests(res.data.requests || []);
+        } catch (err) {
+            console.error('Error fetching join requests:', err);
+        }
+    }, []);
+
+    const handlePropertyChange = (e) => {
+        const { name, value } = e.target;
+        setNewProperty((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmitProperty = async (e) => {
+        e.preventDefault();
+        setAddPropertyError('');
+        setAddPropertySuccess('');
+        setAddPropertyLoading(true);
+
+        try {
+            const response = await API.post('/api/properties', newProperty);
+            const propertyCode = response.data.property.propertyCode;
+            setAddPropertySuccess('Property created successfully!');
+            setCreatedPropertyCode(propertyCode);
+            setNewProperty({
+                name: '',
+                property_type: '',
+                address: '',
+                city: '',
+                state: '',
+                country: '',
+                bedrooms: '',
+                bathrooms: '',
+                description: '',
+                postal_code: ''
+            });
+            await fetchProperties();
+        } catch (err) {
+            setAddPropertyError(err.response?.data?.message || 'Failed to create property.');
+            setCreatedPropertyCode('');
+        } finally {
+            setAddPropertyLoading(false);
+        }
+    };
+
     useEffect(() => {
-        fetchRequests();
-    }, [fetchRequests]);
+        let active = true;
+        const loadData = async () => {
+            if (!active) return;
+            await fetchRequests();
+            await fetchProperties();
+            await fetchJoinRequests();
+        };
+        loadData();
+        return () => { active = false; };
+    }, [fetchRequests, fetchProperties, fetchJoinRequests]);
 
     const stats = {
         total: requests.length,
@@ -54,6 +139,19 @@ const LandlordDashboard = () => {
             low: 'text-gray-500'
         };
         return colors[priority] || 'text-gray-500';
+    };
+
+    const handleJoinRequestAction = async (id, nextStatus) => {
+        setUpdatingRequestId(id);
+        try {
+            const response = await API.put(`/api/properties/join/${id}/status`, { status: nextStatus });
+            setStatusMessage({ type: 'success', text: response.data.message || `Join request ${nextStatus} successfully.` });
+            await fetchJoinRequests();
+        } catch (err) {
+            setStatusMessage({ type: 'error', text: err.response?.data?.message || 'Unable to update join request.' });
+        } finally {
+            setUpdatingRequestId(null);
+        }
     };
 
     return (
@@ -151,10 +249,11 @@ const LandlordDashboard = () => {
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
                                 <thead>
-                                    <tr className="bg-[#f1f4fa] border-b border-[#c1c6d6]">
+                                        <tr className="bg-[#f1f4fa] border-b border-[#c1c6d6]">
                                         <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Ticket ID</th>
                                         <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Tenant</th>
                                         <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Category</th>
+                                        <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Property Code</th>
                                         <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Priority</th>
                                         <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Status</th>
                                         <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Date</th>
@@ -162,46 +261,273 @@ const LandlordDashboard = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#c1c6d6]">
-                                    {loading ? (
-                                        <tr>
-                                            <td colSpan="7" className="px-6 py-8 text-center text-[#414754]">Loading requests...</td>
-                                        </tr>
-                                    ) : requests.length === 0 ? (
-                                        <tr>
-                                            <td colSpan="7" className="px-6 py-8 text-center text-[#414754]">No requests found.</td>
-                                        </tr>
-                                    ) : (
-                                        requests.slice(0, 5).map(request => (
-                                            <tr key={request.id} className="hover:bg-[#f7f9ff] transition-colors">
-                                                <td className="px-6 py-4 font-bold text-[#005bbf] text-xs">#PM-{request.id}</td>
-                                                <td className="px-6 py-4 text-sm">{request.tenant_name}</td>
-                                                <td className="px-6 py-4 text-sm capitalize">{request.category}</td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`text-xs font-bold capitalize ${getPriorityColor(request.priority)}`}>
-                                                        {request.priority}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusBadge(request.status)}`}>
-                                                        {formatStatus(request.status)}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-[#414754]">
-                                                    {new Date(request.submitted_at).toLocaleDateString()}
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <Link
-                                                        to="/landlord/requests"
-                                                        className="text-[#005bbf] text-xs font-bold hover:underline">
-                                                        View
-                                                    </Link>
-                                                </td>
+                                        {loading ? (
+                                            <tr>
+                                                <td colSpan="7" className="px-6 py-8 text-center text-[#414754]">Loading requests...</td>
                                             </tr>
-                                        ))
-                                    )}
+                                        ) : requests.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="7" className="px-6 py-8 text-center text-[#414754]">No requests found.</td>
+                                            </tr>
+                                        ) : (
+                                            requests.slice(0, 5).map(request => (
+                                                <tr key={request._id} className="hover:bg-[#f7f9ff] transition-colors">
+                                                    <td className="px-6 py-4 font-bold text-[#005bbf] text-xs">#PM-{request._id}</td>
+                                                    <td className="px-6 py-4 text-sm">{request.tenantId?.full_name || 'Tenant'}</td>
+                                                    <td className="px-6 py-4 text-sm capitalize">{request.category}</td>
+                                                    <td className="px-6 py-4 text-sm">{request.propertyId?.propertyCode || ''}</td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={`text-xs font-bold capitalize ${getPriorityColor(request.priority)}`}>
+                                                            {request.priority}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusBadge(request.status)}`}>
+                                                            {formatStatus(request.status)}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-[#414754]">{new Date(request.createdAt || request.created_at).toLocaleDateString()}</td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <Link to="/landlord/requests" className="text-[#005bbf] text-xs font-bold hover:underline">View</Link>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+
+                    {/* Properties List with copyable property codes */}
+                    <div className="mt-6 bg-white rounded-xl border border-[#c1c6d6] shadow-sm p-6">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                            <h4 className="text-lg font-bold">Your Properties</h4>
+                            <button
+                                onClick={() => setShowAddProperty((prev) => !prev)}
+                                className="inline-flex items-center justify-center rounded-lg bg-[#005bbf] px-4 py-2 text-sm font-semibold text-white hover:bg-[#004a9a]"
+                            >
+                                {showAddProperty ? 'Close Form' : 'Add Property'}
+                            </button>
+                        </div>
+                        {showAddProperty && (
+                            <div className="mb-6 border border-[#c1c6d6] rounded-xl bg-[#f7f9ff] p-6">
+                                <h5 className="text-md font-bold mb-3">Add New Property</h5>
+                                {addPropertyError && <p className="text-sm text-red-600 mb-3">{addPropertyError}</p>}
+                                {addPropertySuccess && <p className="text-sm text-green-600 mb-3">{addPropertySuccess}</p>}
+                                <form onSubmit={handleSubmitProperty} className="grid gap-4 md:grid-cols-2">
+                                    {createdPropertyCode && (
+                                        <div className="md:col-span-2 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800 flex items-center justify-between gap-3">
+                                            <span>Property created successfully! Code: <strong>{createdPropertyCode}</strong></span>
+                                            <button
+                                                type="button"
+                                                onClick={async () => {
+                                                    try {
+                                                        await navigator.clipboard.writeText(createdPropertyCode);
+                                                        alert('Property code copied');
+                                                    } catch {
+                                                        alert('Copy failed');
+                                                    }
+                                                }}
+                                                className="rounded-lg bg-green-600 px-3 py-2 text-white text-xs font-semibold hover:bg-green-700"
+                                            >
+                                                Copy Code
+                                            </button>
+                                        </div>
+                                    )}
+                                    <label className="space-y-2 text-sm text-[#414754]">
+                                        <span>Property Name</span>
+                                        <input
+                                            name="name"
+                                            value={newProperty.name}
+                                            onChange={handlePropertyChange}
+                                            required
+                                            className="w-full rounded-lg border border-[#c1c6d6] bg-white px-3 py-2 text-sm outline-none focus:border-[#005bbf]"
+                                        />
+                                    </label>
+                                    <label className="space-y-2 text-sm text-[#414754]">
+                                        <span>Property Type</span>
+                                        <input
+                                            name="property_type"
+                                            value={newProperty.property_type}
+                                            onChange={handlePropertyChange}
+                                            required
+                                            className="w-full rounded-lg border border-[#c1c6d6] bg-white px-3 py-2 text-sm outline-none focus:border-[#005bbf]"
+                                        />
+                                    </label>
+                                    <label className="space-y-2 text-sm text-[#414754] md:col-span-2">
+                                        <span>Address</span>
+                                        <input
+                                            name="address"
+                                            value={newProperty.address}
+                                            onChange={handlePropertyChange}
+                                            required
+                                            className="w-full rounded-lg border border-[#c1c6d6] bg-white px-3 py-2 text-sm outline-none focus:border-[#005bbf]"
+                                        />
+                                    </label>
+                                    <label className="space-y-2 text-sm text-[#414754]">
+                                        <span>City</span>
+                                        <input
+                                            name="city"
+                                            value={newProperty.city}
+                                            onChange={handlePropertyChange}
+                                            required
+                                            className="w-full rounded-lg border border-[#c1c6d6] bg-white px-3 py-2 text-sm outline-none focus:border-[#005bbf]"
+                                        />
+                                    </label>
+                                    <label className="space-y-2 text-sm text-[#414754]">
+                                        <span>State</span>
+                                        <input
+                                            name="state"
+                                            value={newProperty.state}
+                                            onChange={handlePropertyChange}
+                                            required
+                                            className="w-full rounded-lg border border-[#c1c6d6] bg-white px-3 py-2 text-sm outline-none focus:border-[#005bbf]"
+                                        />
+                                    </label>
+                                    <label className="space-y-2 text-sm text-[#414754]">
+                                        <span>Country</span>
+                                        <input
+                                            name="country"
+                                            value={newProperty.country}
+                                            onChange={handlePropertyChange}
+                                            className="w-full rounded-lg border border-[#c1c6d6] bg-white px-3 py-2 text-sm outline-none focus:border-[#005bbf]"
+                                        />
+                                    </label>
+                                    <label className="space-y-2 text-sm text-[#414754]">
+                                        <span>Bedrooms</span>
+                                        <input
+                                            name="bedrooms"
+                                            value={newProperty.bedrooms}
+                                            onChange={handlePropertyChange}
+                                            required
+                                            type="number"
+                                            min="0"
+                                            className="w-full rounded-lg border border-[#c1c6d6] bg-white px-3 py-2 text-sm outline-none focus:border-[#005bbf]"
+                                        />
+                                    </label>
+                                    <label className="space-y-2 text-sm text-[#414754]">
+                                        <span>Bathrooms</span>
+                                        <input
+                                            name="bathrooms"
+                                            value={newProperty.bathrooms}
+                                            onChange={handlePropertyChange}
+                                            required
+                                            type="number"
+                                            min="0"
+                                            className="w-full rounded-lg border border-[#c1c6d6] bg-white px-3 py-2 text-sm outline-none focus:border-[#005bbf]"
+                                        />
+                                    </label>
+                                    <label className="space-y-2 text-sm text-[#414754] md:col-span-2">
+                                        <span>Postal Code</span>
+                                        <input
+                                            name="postal_code"
+                                            value={newProperty.postal_code}
+                                            onChange={handlePropertyChange}
+                                            className="w-full rounded-lg border border-[#c1c6d6] bg-white px-3 py-2 text-sm outline-none focus:border-[#005bbf]"
+                                        />
+                                    </label>
+                                    <label className="space-y-2 text-sm text-[#414754] md:col-span-2">
+                                        <span>Description</span>
+                                        <textarea
+                                            name="description"
+                                            value={newProperty.description}
+                                            onChange={handlePropertyChange}
+                                            rows="3"
+                                            className="w-full rounded-lg border border-[#c1c6d6] bg-white px-3 py-2 text-sm outline-none focus:border-[#005bbf]"
+                                        />
+                                    </label>
+                                    <div className="md:col-span-2 flex justify-end gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAddProperty(false)}
+                                            className="rounded-lg border border-[#c1c6d6] bg-white px-4 py-2 text-sm text-[#414754] hover:bg-[#f1f4fa]"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={addPropertyLoading}
+                                            className="rounded-lg bg-[#005bbf] px-4 py-2 text-sm font-semibold text-white hover:bg-[#004a9a] disabled:opacity-50"
+                                        >
+                                            {addPropertyLoading ? 'Saving...' : 'Save Property'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
+                        {properties.length === 0 ? (
+                            <p className="text-sm text-[#414754]">You have no properties yet.</p>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {properties.map(p => (
+                                    <div key={p._id} className="border rounded-lg p-4 flex items-center justify-between">
+                                        <div>
+                                            <div className="font-bold">{p.name}</div>
+                                            <div className="text-xs text-[#727785]">{p.address}</div>
+                                            <div className="text-xs mt-2">Code: <span className="font-semibold">{p.propertyCode}</span></div>
+                                            <div className="text-xs text-[#727785]">Share this code with tenants to allow them join the property.</div>
+                                        </div>
+                                        <div>
+                                            <button onClick={async () => { try { await navigator.clipboard.writeText(p.propertyCode); alert('Code copied'); } catch { alert('Copy failed'); } }} className="bg-[#005bbf] text-white px-4 py-2 rounded-lg">Copy</button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Pending Join Requests */}
+                    <div className="mt-6 bg-white rounded-xl border border-[#c1c6d6] shadow-sm p-6">
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                            <h4 className="text-lg font-bold">Pending Tenant Join Requests</h4>
+                            <button className="text-sm text-[#005bbf] font-semibold hover:underline" onClick={fetchJoinRequests}>Refresh</button>
+                        </div>
+                        {statusMessage.text && (
+                            <div className="mb-4">
+                                <StatusMessage type={statusMessage.type} message={statusMessage.text} onClose={() => setStatusMessage({ type: 'info', text: '' })} />
+                            </div>
+                        )}
+                        {joinRequests.length === 0 ? (
+                            <p className="text-sm text-[#414754]">No tenant join requests pending approval.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {joinRequests.map(request => (
+                                    <div key={request._id} className="border rounded-lg p-4 bg-[#f7f9ff]">
+                                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                            <div>
+                                                <div className="text-sm font-semibold">{request.propertyId?.name || request.propertyCode}</div>
+                                                <div className="text-xs text-[#727785]">Code: {request.propertyCode}</div>
+                                                <div className="text-xs text-[#727785]">Tenant: {request.tenantId?.full_name || 'Unknown'}</div>
+                                                <div className="text-xs text-[#727785]">Email: {request.tenantId?.email || 'Unknown'}</div>
+                                                <div className="text-xs text-[#727785]">Phone: {request.tenantId?.phone_number || 'N/A'}</div>
+                                                <div className="text-xs text-[#727785]">Submitted: {new Date(request.createdAt).toLocaleDateString()}</div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-amber-700">{request.status}</span>
+                                                {request.status === 'pending' && (
+                                                    <>
+                                                        <button
+                                                            className="rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                                                            disabled={updatingRequestId === request._id}
+                                                            onClick={() => handleJoinRequestAction(request._id, 'approved')}
+                                                        >
+                                                            {updatingRequestId === request._id ? 'Working...' : 'Accept'}
+                                                        </button>
+                                                        <button
+                                                            className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                                                            disabled={updatingRequestId === request._id}
+                                                            onClick={() => handleJoinRequestAction(request._id, 'rejected')}
+                                                        >
+                                                            {updatingRequestId === request._id ? 'Working...' : 'Reject'}
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </main>

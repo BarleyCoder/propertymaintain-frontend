@@ -7,6 +7,7 @@ import Landing from "./pages/LandingPage";
 // Auth Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
+import VerifyEmail from './pages/VerifyEmail';
 
 // Tenant Pages
 import TenantDashboard from './pages/tenant/Dashboard';
@@ -26,8 +27,16 @@ import Technicians from './pages/landlord/Technicians';
 
 // Technician Pages
 import TechnicianDashboard from './pages/technician/Dashboard';
+import AssignedTasks from './pages/technician/AssignedTasks';
 import UpdateWorkOrder from './pages/technician/UpdateWorkOrder';
 import WorkHistory from './pages/technician/WorkHistory';
+import TechnicianProfileSetup from './pages/technician/TechnicianProfileSetup';
+import TechnicianVerification from './pages/admin/TechnicianVerification';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminUsers from './pages/admin/Users';
+import AdminProperties from './pages/admin/Properties';
+import AdminMaintenance from './pages/admin/Maintenance';
+import AdminWorkOrders from './pages/admin/WorkOrders';
 
 function App() {
     return (
@@ -39,6 +48,7 @@ function App() {
                     {/* Auth Routes */}
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
+                    <Route path="/verify-email" element={<VerifyEmail />} />
 
                     {/* Tenant Routes */}
                     <Route path="/tenant/dashboard" element={
@@ -100,9 +110,19 @@ function App() {
                             <TechnicianDashboard />
                         </ProtectedRoute>
                     } />
+                    <Route path="/technician/work-orders" element={
+                        <ProtectedRoute allowedRoles={['technician']}>
+                            <AssignedTasks />
+                        </ProtectedRoute>
+                    } />
                     <Route path="/technician/update-work-order/:id" element={
                         <ProtectedRoute allowedRoles={['technician']}>
                             <UpdateWorkOrder />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/technician/setup-profile" element={
+                        <ProtectedRoute allowedRoles={['technician']}>
+                            <TechnicianProfileSetup />
                         </ProtectedRoute>
                     } />
                     <Route path="/profile" element={
@@ -123,6 +143,36 @@ function App() {
                     <Route path="/technician/work-history" element={
                         <ProtectedRoute allowedRoles={['technician']}>
                             <WorkHistory />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/dashboard" element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                            <AdminDashboard />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/users" element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                            <AdminUsers />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/properties" element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                            <AdminProperties />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/maintenance" element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                            <AdminMaintenance />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/work-orders" element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                            <AdminWorkOrders />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/technician-verification" element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                            <TechnicianVerification />
                         </ProtectedRoute>
                     } />
                 </Routes>

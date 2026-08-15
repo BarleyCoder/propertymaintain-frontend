@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import useAuth from '../../context/useAuth';
 import LandlordSidebar from '../../components/LandlordSidebar';
+import StatusMessage from '../../components/StatusMessage';
 import API from '../../utils/axios';
 
 const LandlordRequests = () => {
@@ -14,9 +14,14 @@ const LandlordRequests = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [updating, setUpdating] = useState(false);
+    const [joinRequests, setJoinRequests] = useState([]);
+    const [joinRequestsLoading, setJoinRequestsLoading] = useState(true);
+    const [joinRequestUpdatingId, setJoinRequestUpdatingId] = useState(null);
+    const [joinFeedback, setJoinFeedback] = useState({ type: 'info', text: '' });
     const itemsPerPage = 8;
 
     const fetchRequests = useCallback(async () => {
+        setLoading(true);
         try {
             const response = await API.get('/api/maintenance/landlord');
             setRequests(response.data.requests);
@@ -27,9 +32,40 @@ const LandlordRequests = () => {
         }
     }, []);
 
+    const fetchJoinRequests = useCallback(async () => {
+        setJoinRequestsLoading(true);
+        try {
+            const response = await API.get('/api/properties/join/landlord');
+            setJoinRequests(response.data.requests || []);
+        } catch (error) {
+            console.error('Error fetching join requests:', error);
+        } finally {
+            setJoinRequestsLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
-        fetchRequests();
-    }, [fetchRequests]);
+        let active = true;
+        const loadRequests = async () => {
+            if (!active) return;
+            await fetchRequests();
+            await fetchJoinRequests();
+        };
+        loadRequests();
+
+        const handleFocus = () => {
+            if (active) {
+                fetchRequests();
+                fetchJoinRequests();
+            }
+        };
+
+        window.addEventListener('focus', handleFocus);
+        return () => {
+            active = false;
+            window.removeEventListener('focus', handleFocus);
+        };
+    }, [fetchRequests, fetchJoinRequests]);
 
     const handleUpdateStatus = async (id, status) => {
         setUpdating(true);
@@ -41,6 +77,19 @@ const LandlordRequests = () => {
             console.error('Error updating status:', error);
         } finally {
             setUpdating(false);
+        }
+    };
+
+    const handleJoinRequestAction = async (id, nextStatus) => {
+        setJoinRequestUpdatingId(id);
+        try {
+            const response = await API.put(`/api/properties/join/${id}/status`, { status: nextStatus });
+            setJoinFeedback({ type: 'success', text: response.data.message || `Join request ${nextStatus} successfully.` });
+            await fetchJoinRequests();
+        } catch (error) {
+            setJoinFeedback({ type: 'error', text: error.response?.data?.message || 'Unable to update join request.' });
+        } finally {
+            setJoinRequestUpdatingId(null);
         }
     };
 
@@ -78,6 +127,8 @@ const LandlordRequests = () => {
         };
         return dots[priority] || 'bg-gray-400';
     };
+
+    const pendingJoinRequests = joinRequests.filter(request => request.status === 'pending');
 
     const formatStatus = (status) => {
         return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -185,10 +236,20 @@ const LandlordRequests = () => {
                                 <h1 className="text-3xl font-bold text-[#181c20]">Maintenance Requests</h1>
                                 <p className="text-sm text-[#414754]">Manage and track all facility maintenance tickets.</p>
                             </div>
-                            <button className="bg-[#005bbf] text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-[#004493] transition-all">
-                                <span className="material-symbols-outlined text-xl">add</span>
-                                <span className="text-xs font-semibold">New Work Order</span>
-                            </button>
+                            <div className="flex flex-wrap gap-3">
+                                <button
+                                    className="bg-white border border-[#c1c6d6] text-[#414754] px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-[#f1f4fa] transition-all"
+                                    onClick={fetchRequests}
+                                    disabled={loading}
+                                >
+                                    <span className="material-symbols-outlined text-xl">refresh</span>
+                                    <span className="text-xs font-semibold">Refresh</span>
+                                </button>
+                                <button className="bg-[#005bbf] text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-[#004493] transition-all">
+                                    <span className="material-symbols-outlined text-xl">add</span>
+                                    <span className="text-xs font-semibold">New Work Order</span>
+                                </button>
+                            </div>
                         </div>
 
                         {/* Filter Bar */}
@@ -235,6 +296,61 @@ const LandlordRequests = () => {
                             </div>
                         </div>
 
+                        <div className="bg-white border border-[#c1c6d6] rounded-xl p-6 shadow-sm">
+                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+                                <div>
+                                    <h2 className="text-lg font-bold text-[#181c20]">Tenant Join Requests</h2>
+                                    <p className="text-sm text-[#414754]">Approve or reject tenant requests to join your properties.</p>
+                                </div>
+                                <button className="text-sm font-semibold text-[#005bbf] hover:underline" onClick={fetchJoinRequests}>
+                                    Refresh
+                                </button>
+                            </div>
+                            {joinFeedback.text && (
+                                <div className="mb-4">
+                                    <StatusMessage type={joinFeedback.type} message={joinFeedback.text} onClose={() => setJoinFeedback({ type: 'info', text: '' })} />
+                                </div>
+                            )}
+                            {joinRequestsLoading ? (
+                                <p className="text-sm text-[#414754]">Loading join requests...</p>
+                            ) : pendingJoinRequests.length === 0 ? (
+                                <p className="text-sm text-[#414754]">No pending tenant join requests.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {pendingJoinRequests.map(request => (
+                                        <div key={request._id} className="rounded-xl border border-[#c1c6d6] bg-[#f7f9ff] p-4">
+                                            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                                <div>
+                                                    <div className="text-sm font-semibold text-[#181c20]">{request.propertyId?.name || request.propertyCode}</div>
+                                                    <div className="text-xs text-[#727785]">Tenant: {request.tenantId?.full_name || 'Unknown'}</div>
+                                                    <div className="text-xs text-[#727785]">Email: {request.tenantId?.email || 'Unknown'}</div>
+                                                    <div className="text-xs text-[#727785]">Phone: {request.tenantId?.phone_number || 'N/A'}</div>
+                                                    <div className="text-xs text-[#727785]">Property Code: {request.propertyCode}</div>
+                                                    <div className="text-xs text-[#727785]">Submitted: {new Date(request.createdAt).toLocaleDateString()}</div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        className="rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                                                        disabled={joinRequestUpdatingId === request._id}
+                                                        onClick={() => handleJoinRequestAction(request._id, 'approved')}
+                                                    >
+                                                        {joinRequestUpdatingId === request._id ? 'Working...' : 'Accept'}
+                                                    </button>
+                                                    <button
+                                                        className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                                                        disabled={joinRequestUpdatingId === request._id}
+                                                        onClick={() => handleJoinRequestAction(request._id, 'rejected')}
+                                                    >
+                                                        {joinRequestUpdatingId === request._id ? 'Working...' : 'Reject'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
                         {/* Requests Table */}
                         <div className="bg-white border border-[#c1c6d6] rounded-xl overflow-hidden shadow-sm">
                             <div className="overflow-x-auto">
@@ -244,6 +360,7 @@ const LandlordRequests = () => {
                                             <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Ticket ID</th>
                                             <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Tenant</th>
                                             <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Category</th>
+                                            <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Property Code</th>
                                             <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Priority</th>
                                             <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Status</th>
                                             <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Date</th>
@@ -272,6 +389,7 @@ const LandlordRequests = () => {
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 text-sm capitalize">{request.category}</td>
+                                                    <td className="px-6 py-4 text-sm">{request.propertyId?.propertyCode || ''}</td>
                                                     <td className="px-6 py-4">
                                                         <div className="flex items-center gap-1">
                                                             <span className={`w-2 h-2 rounded-full ${getPriorityDot(request.priority)}`}></span>

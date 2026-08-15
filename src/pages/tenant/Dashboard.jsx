@@ -2,12 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import useAuth from '../../context/useAuth';
 import TenantSidebar from '../../components/Sidebar';
+import StatusMessage from '../../components/StatusMessage';
 import API from '../../utils/axios';
 
 const TenantDashboard = () => {
     const { user } = useAuth();
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [propertyCode, setPropertyCode] = useState('');
+    const [joinRequests, setJoinRequests] = useState([]);
+    const [joinLoading, setJoinLoading] = useState(true);
+    const [statusMessage, setStatusMessage] = useState({ type: 'info', text: '' });
+    const [submitting, setSubmitting] = useState(false);
 
     const fetchRequests = useCallback(async () => {
         try {
@@ -20,9 +26,28 @@ const TenantDashboard = () => {
         }
     }, []);
 
+    const fetchJoinRequests = useCallback(async () => {
+        setJoinLoading(true);
+        try {
+            const response = await API.get('/api/properties/join/tenant');
+            setJoinRequests(response.data.requests);
+        } catch (error) {
+            console.error('Error fetching join requests:', error);
+        } finally {
+            setJoinLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
-        fetchRequests();
-    }, [fetchRequests]);
+        let active = true;
+        const loadData = async () => {
+            if (!active) return;
+            await fetchRequests();
+            await fetchJoinRequests();
+        };
+        loadData();
+        return () => { active = false; };
+    }, [fetchRequests, fetchJoinRequests]);
 
     const getStatusBadge = (status) => {
         const badges = {
@@ -66,6 +91,17 @@ const TenantDashboard = () => {
         completed: requests.filter(r => r.status === 'completed').length,
     };
 
+    const latestRequest = joinRequests[0];
+    const propertyStatusMessage = latestRequest?.status === 'approved'
+        ? `You have been successfully added to ${latestRequest.propertyId?.name || 'this property'}.`
+        : latestRequest?.status === 'rejected'
+            ? 'Your request to join this property was rejected.'
+            : latestRequest?.status === 'pending' && latestRequest.propertyId?.name
+                ? `Your request to join ${latestRequest.propertyId.name} is waiting for landlord approval.`
+                : 'Submit an access request to begin.';
+
+    const approvedRequests = joinRequests.filter(r => r.status === 'approved');
+
     return (
         <div className="flex h-screen w-full overflow-hidden bg-[#f7f9ff]">
             <TenantSidebar />
@@ -103,6 +139,93 @@ const TenantDashboard = () => {
                         <p className="text-[#414754]">
                             Here is an overview of your property maintenance status.
                         </p>
+                    </div>
+
+                    {/* Property Linking */}
+                    <div className="mb-6">
+                        <div className="bg-white border border-[#c1c6d6] rounded-xl p-4 max-w-md">
+                            <h3 className="text-sm font-semibold mb-2">Request Access to a Property</h3>
+                            <p className="text-xs text-[#727785] mb-3">Enter the property code provided by your landlord. Your request will be sent for approval.</p>
+                            {statusMessage.text && (
+                                <div className="mb-3">
+                                    <StatusMessage type={statusMessage.type} message={statusMessage.text} onClose={() => setStatusMessage({ type: 'info', text: '' })} />
+                                </div>
+                            )}
+                            <div className="flex gap-2">
+                                <input
+                                    className="flex-1 border border-[#c1c6d6] rounded-lg px-3 py-2"
+                                    placeholder="Property code"
+                                    value={propertyCode}
+                                    onChange={(e) => setPropertyCode(e.target.value)}
+                                />
+                                <button
+                                    className="bg-[#005bbf] text-white px-4 py-2 rounded-lg disabled:opacity-50"
+                                    disabled={submitting}
+                                    onClick={async () => {
+                                        const code = propertyCode?.trim();
+                                        if (!code) {
+                                            setStatusMessage({ type: 'error', text: 'Please enter a property code.' });
+                                            return;
+                                        }
+
+                                        setSubmitting(true);
+                                        try {
+                                            await API.post('/api/properties/join', { property_code: code.toUpperCase() });
+                                            setStatusMessage({ type: 'success', text: 'Join request sent successfully. Waiting for landlord approval.' });
+                                            setPropertyCode('');
+                                            fetchRequests();
+                                            fetchJoinRequests();
+                                        } catch (err) {
+                                            setStatusMessage({ type: 'error', text: err.response?.data?.message || 'Error submitting join request' });
+                                        } finally {
+                                            setSubmitting(false);
+                                        }
+                                    }}
+                                >{submitting ? 'Sending...' : 'Request'}</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Property connection status */}
+                    <div className="mb-6">
+                        <div className="bg-white border border-[#c1c6d6] rounded-xl p-4 max-w-4xl">
+                            <h3 className="text-sm font-semibold">Property Connection Status</h3>
+                            <p className="mt-2 text-sm text-[#414754]">{propertyStatusMessage}</p>
+                        </div>
+                    </div>
+
+                    {/* Join Requests */}
+                    <div className="mb-6">
+                        <div className="bg-white border border-[#c1c6d6] rounded-xl p-4 max-w-4xl">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="text-sm font-semibold">Property Access Requests</h3>
+                                    <p className="text-xs text-[#727785]">Review the status of requests to join a property.</p>
+                                </div>
+                            </div>
+                            {joinLoading ? (
+                                <p className="text-sm text-[#414754]">Loading join requests...</p>
+                            ) : joinRequests.length === 0 ? (
+                                <p className="text-sm text-[#414754]">No property access requests submitted yet.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {joinRequests.map((request) => (
+                                        <div key={request._id} className="border rounded-lg p-4 bg-[#f7f9ff]">
+                                            <div className="flex items-center justify-between gap-4">
+                                                <div>
+                                                    <div className="text-sm font-semibold">{request.propertyId?.name || request.propertyCode}</div>
+                                                    <div className="text-xs text-[#727785]">Code: {request.propertyCode}</div>
+                                                </div>
+                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${request.status === 'approved' ? 'bg-green-100 text-green-700' : request.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-amber-700'}`}>
+                                                    {request.status}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-[#414754] mt-2">Submitted: {new Date(request.createdAt).toLocaleDateString()}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Stats Cards */}

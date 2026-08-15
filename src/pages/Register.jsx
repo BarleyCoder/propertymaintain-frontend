@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import StatusMessage from '../components/StatusMessage';
 import API from '../utils/axios';
 
 const Register = () => {
@@ -16,21 +17,49 @@ const Register = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [passwordHint, setPasswordHint] = useState('');
+    const [googleLoading, setGoogleLoading] = useState(false);
+    const [googleMessage, setGoogleMessage] = useState({ type: 'info', text: '' });
+    const [pendingGoogleCredential, setPendingGoogleCredential] = useState('');
+    const [pendingRoleSelection, setPendingRoleSelection] = useState(false);
+    const [selectedGoogleRole, setSelectedGoogleRole] = useState('');
     const navigate = useNavigate();
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const nextValue = e.target.value;
+        setFormData({ ...formData, [e.target.name]: nextValue });
+
+        if (e.target.name === 'role') {
+            setSelectedGoogleRole(nextValue);
+        }
 
         if (e.target.name === 'password') {
-            if (e.target.value.length > 0 && e.target.value.length < 8) {
+            if (nextValue.length > 0 && nextValue.length < 8) {
                 setPasswordHint('weak');
-            } else if (e.target.value.length >= 8) {
+            } else if (nextValue.length >= 8) {
                 setPasswordHint('strong');
             } else {
                 setPasswordHint('');
             }
         }
     };
+
+    const redirectBasedOnRole = useCallback((user) => {
+        if (user.role === 'tenant') {
+            navigate('/tenant/dashboard');
+        } else if (user.role === 'landlord') {
+            navigate('/landlord/dashboard');
+        } else if (user.role === 'technician') {
+            navigate('/technician/dashboard');
+        } else if (user.role === 'admin') {
+            navigate('/landlord/dashboard');
+        }
+    }, [navigate]);
+
+    const handleGoogleAuthSuccess = useCallback((user, token) => {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        redirectBasedOnRole(user);
+    }, [redirectBasedOnRole]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -58,13 +87,168 @@ const Register = () => {
                 password: formData.password
             });
 
-            setSuccess('Account created successfully! Redirecting to login...');
-            setTimeout(() => navigate('/login'), 2000);
+            setSuccess('Account created successfully. Please check your email to verify your account.');
+            setTimeout(() => navigate('/login'), 3000);
         } catch (err) {
             setError(err.response?.data?.message || 'Error creating account');
         } finally {
             setLoading(false);
         }
+    };
+
+    useEffect(() => {
+        if (window.google?.accounts?.id) {
+            window.google.accounts.id.initialize({
+                client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+                callback: async (response) => {
+                    if (!response.credential) {
+                        setGoogleMessage({ type: 'error', text: 'Google sign-in was cancelled.' });
+                        return;
+                    }
+
+                    setGoogleLoading(true);
+                    setGoogleMessage({ type: 'info', text: 'Finishing Google sign-in...' });
+                    try {
+                        const result = await API.post('/api/auth/google', { credential: response.credential });
+                        if (result.data.requiresRoleSelection) {
+                            setPendingGoogleCredential(response.credential);
+                            setSelectedGoogleRole('');
+                            setPendingRoleSelection(true);
+                            setGoogleMessage({ type: 'info', text: result.data.message || 'Please choose how you will use Property Maintenance.' });
+                            return;
+                        }
+                        handleGoogleAuthSuccess(result.data.user, result.data.token);
+                    } catch (err) {
+                        if (err.response?.data?.requiresRoleSelection) {
+                            setPendingGoogleCredential(response.credential);
+                            setSelectedGoogleRole('');
+                            setPendingRoleSelection(true);
+                            setGoogleMessage({ type: 'info', text: err.response.data.message || 'Please choose how you will use Property Maintenance.' });
+                            return;
+                        }
+                        setGoogleMessage({ type: 'error', text: err.response?.data?.message || 'Google sign-in failed. Please try again.' });
+                    } finally {
+                        setGoogleLoading(false);
+                    }
+                }
+            });
+
+            const container = document.getElementById('google-register-button');
+            if (container) {
+                window.google.accounts.id.renderButton(container, {
+                    theme: 'outline',
+                    size: 'large',
+                    text: 'continue_with',
+                    shape: 'pill'
+                });
+            }
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+            if (window.google?.accounts?.id) {
+                window.google.accounts.id.initialize({
+                    client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+                    callback: async (response) => {
+                        if (!response.credential) {
+                            setGoogleMessage({ type: 'error', text: 'Google sign-in was cancelled.' });
+                            return;
+                        }
+
+                        setGoogleLoading(true);
+                        setGoogleMessage({ type: 'info', text: 'Finishing Google sign-in...' });
+                        try {
+                            const result = await API.post('/api/auth/google', { credential: response.credential });
+                            if (result.data.requiresRoleSelection) {
+                                setPendingGoogleCredential(response.credential);
+                                setSelectedGoogleRole('');
+                                setPendingRoleSelection(true);
+                                setGoogleMessage({ type: 'info', text: result.data.message || 'Please choose how you will use Property Maintenance.' });
+                                return;
+                            }
+                            handleGoogleAuthSuccess(result.data.user, result.data.token);
+                        } catch (err) {
+                            if (err.response?.data?.requiresRoleSelection) {
+                                setPendingGoogleCredential(response.credential);
+                                setSelectedGoogleRole('');
+                                setPendingRoleSelection(true);
+                                setGoogleMessage({ type: 'info', text: err.response.data.message || 'Please choose how you will use Property Maintenance.' });
+                                return;
+                            }
+                            setGoogleMessage({ type: 'error', text: err.response?.data?.message || 'Google sign-in failed. Please try again.' });
+                        } finally {
+                            setGoogleLoading(false);
+                        }
+                    }
+                });
+
+                const container = document.getElementById('google-register-button');
+                if (container) {
+                    window.google.accounts.id.renderButton(container, {
+                        theme: 'outline',
+                        size: 'large',
+                        text: 'continue_with',
+                        shape: 'pill'
+                    });
+                }
+            }
+        };
+        document.head.appendChild(script);
+    }, [handleGoogleAuthSuccess]);
+
+    const continueWithGoogle = async () => {
+        if (!window.google?.accounts?.id) {
+            setGoogleMessage({ type: 'error', text: 'Google authentication is not available right now.' });
+            return;
+        }
+
+        if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+            setGoogleMessage({ type: 'error', text: 'Google authentication is not configured yet.' });
+            return;
+        }
+
+        setPendingRoleSelection(false);
+        setPendingGoogleCredential('');
+        setSelectedGoogleRole('');
+        window.google.accounts.id.prompt();
+    };
+
+    const submitGoogleRole = async () => {
+        if (!pendingGoogleCredential || !selectedGoogleRole) {
+            setGoogleMessage({ type: 'error', text: 'Please select a role to continue.' });
+            return;
+        }
+
+        setGoogleLoading(true);
+        try {
+            const result = await API.post('/api/auth/google', {
+                credential: pendingGoogleCredential,
+                role: selectedGoogleRole
+            });
+            if (result.data.requiresRoleSelection) {
+                setGoogleMessage({ type: 'error', text: 'Please choose a role to continue.' });
+                return;
+            }
+            setPendingRoleSelection(false);
+            setPendingGoogleCredential('');
+            setSelectedGoogleRole('');
+            handleGoogleAuthSuccess(result.data.user, result.data.token);
+        } catch (err) {
+            setGoogleMessage({ type: 'error', text: err.response?.data?.message || 'Unable to finish Google sign-in.' });
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
+
+    const cancelGoogleRoleSelection = () => {
+        setPendingRoleSelection(false);
+        setPendingGoogleCredential('');
+        setSelectedGoogleRole('');
+        setGoogleMessage({ type: 'info', text: 'Google sign-in cancelled.' });
     };
 
     return (
@@ -114,8 +298,78 @@ const Register = () => {
 
                             {/* Success Message */}
                             {success && (
-                                <div className="bg-green-100 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
-                                    {success}
+                                <div className="mb-4">
+                                    <StatusMessage type="success" message={success} />
+                                </div>
+                            )}
+                            {googleMessage.text && (
+                                <div className="mb-4">
+                                    <StatusMessage type={googleMessage.type} message={googleMessage.text} onClose={() => setGoogleMessage({ type: 'info', text: '' })} />
+                                </div>
+                            )}
+
+                            <div className="mb-4">
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#c1c6d6] bg-white px-4 py-3 text-sm font-semibold text-[#414754] shadow-sm transition hover:bg-[#f1f4fa]"
+                                    onClick={continueWithGoogle}
+                                    disabled={googleLoading}
+                                >
+                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#005bbf] text-xs font-bold text-white">G</span>
+                                    {googleLoading ? 'Connecting...' : 'Continue with Google'}
+                                </button>
+                                <div id="google-register-button" className="mt-3 flex justify-center"></div>
+                            </div>
+
+                            {pendingRoleSelection && (
+                                <div className="mb-4 rounded-xl border border-[#c1c6d6] bg-[#f7f9ff] p-4">
+                                    <p className="text-sm font-semibold text-[#181c20]">How would you like to use Property Maintenance?</p>
+                                    <div className="mt-4 space-y-3">
+                                        {[
+                                            {
+                                                value: 'tenant',
+                                                title: '🏠 Tenant',
+                                                description: 'Submit maintenance requests and manage your property access.'
+                                            },
+                                            {
+                                                value: 'landlord',
+                                                title: '🏢 Landlord',
+                                                description: 'Manage properties, tenants, maintenance requests and technicians.'
+                                            },
+                                            {
+                                                value: 'technician',
+                                                title: '🔧 Technician',
+                                                description: 'Receive maintenance jobs and manage work orders.'
+                                            }
+                                        ].map((option) => (
+                                            <button
+                                                key={option.value}
+                                                type="button"
+                                                className={`w-full rounded-lg border p-3 text-left transition ${selectedGoogleRole === option.value ? 'border-[#005bbf] bg-[#dfeeff]' : 'border-[#c1c6d6] bg-white text-[#181c20]'}`}
+                                                onClick={() => setSelectedGoogleRole(option.value)}
+                                            >
+                                                <div className="text-sm font-bold">{option.title}</div>
+                                                <div className="mt-1 text-xs text-[#414754]">{option.description}</div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="mt-4 flex justify-end gap-3">
+                                        <button
+                                            type="button"
+                                            className="rounded-lg border border-[#c1c6d6] bg-white px-4 py-2 text-sm font-semibold text-[#414754]"
+                                            onClick={cancelGoogleRoleSelection}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="rounded-lg bg-[#005bbf] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                            onClick={submitGoogleRole}
+                                            disabled={googleLoading || !selectedGoogleRole}
+                                        >
+                                            Continue
+                                        </button>
+                                    </div>
                                 </div>
                             )}
 

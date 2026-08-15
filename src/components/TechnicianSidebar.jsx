@@ -33,8 +33,8 @@ const TechnicianSidebar = () => {
                     <span className="text-xs font-semibold uppercase">Dashboard</span>
                 </Link>
                 <Link
-                    className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer ${isActive('/technician/assigned') ? 'bg-[#4d8efe] text-white font-bold' : 'text-[#414754] hover:bg-[#dfe3e8]/50'}`}
-                    to="/technician/dashboard">
+                    className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer ${(isActive('/technician/dashboard') || isActive('/technician/work-orders')) ? 'bg-[#4d8efe] text-white font-bold' : 'text-[#414754] hover:bg-[#dfe3e8]/50'}`}
+                    to="/technician/work-orders">
                     <span className="material-symbols-outlined">assignment</span>
                     <span className="text-xs font-semibold uppercase">Assigned Tasks</span>
                 </Link>
@@ -45,10 +45,10 @@ const TechnicianSidebar = () => {
                     <span className="text-xs font-semibold uppercase">Work History</span>
                 </Link>
                 <Link
-                    className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer text-[#414754] hover:bg-[#dfe3e8]/50`}
-                    to="/profile">
+                    className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer ${isActive('/technician/setup-profile') ? 'bg-[#4d8efe] text-white font-bold' : 'text-[#414754] hover:bg-[#dfe3e8]/50'}`}
+                    to="/technician/setup-profile">
                     <span className="material-symbols-outlined">person</span>
-                    <span className="text-xs font-semibold uppercase">Profile</span>
+                    <span className="text-xs font-semibold uppercase">Profile Setup</span>
                 </Link>
             </nav>
 

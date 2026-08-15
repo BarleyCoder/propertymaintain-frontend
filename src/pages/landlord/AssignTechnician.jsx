@@ -12,22 +12,18 @@ const AssignTechnician = () => {
     const [selectedTechnician, setSelectedTechnician] = useState('');
     const [scheduledDate, setScheduledDate] = useState('');
     const [notes, setNotes] = useState('');
+    const [selectedProfile, setSelectedProfile] = useState(null);
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
     const fetchData = useCallback(async () => {
         try {
-            const [requestsRes, usersRes] = await Promise.all([
-                API.get('/api/maintenance/landlord'),
-                API.get('/api/auth/users')
-            ]);
+            const requestsRes = await API.get('/api/maintenance/landlord');
             const pendingRequests = requestsRes.data.requests.filter(
                 r => r.status === 'pending' || r.status === 'approved'
             );
             setRequests(pendingRequests);
-            const technicianUsers = usersRes.data.users?.filter(u => u.role === 'technician') || [];
-            setTechnicians(technicianUsers);
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
@@ -38,6 +34,25 @@ const AssignTechnician = () => {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    // Fetch technicians for selected request when request changes
+    useEffect(() => {
+        const fetchTechs = async () => {
+            if (!selectedRequest) return setTechnicians([]);
+            setLoading(true);
+            try {
+                const res = await API.get(`/api/technician/available/${selectedRequest}`);
+                // Each item is a profile with userId populated
+                setTechnicians(res.data.technicians || []);
+            } catch (err) {
+                console.error('Error fetching technicians for request:', err);
+                setTechnicians([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchTechs();
+    }, [selectedRequest]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -59,7 +74,12 @@ const AssignTechnician = () => {
             setNotes('');
             fetchData();
         } catch (err) {
-            setError(err.response?.data?.message || 'Error assigning technician');
+            const status = err.response?.status;
+            if (status === 401) setError('You must be logged in');
+            else if (status === 403) setError('You are not authorized to assign technicians');
+            else if (status === 404) setError('Resource not found');
+            else if (status === 500) setError('Server error. Try again later');
+            else setError(err.response?.data?.message || 'Error assigning technician');
         } finally {
             setSubmitting(false);
         }
@@ -68,6 +88,52 @@ const AssignTechnician = () => {
     return (
         <div className="flex h-screen overflow-hidden bg-[#f7f9ff]">
             <LandlordSidebar />
+
+            {selectedProfile && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h3 className="text-xl font-bold text-[#181c20]">Technician Profile</h3>
+                            <button type="button" onClick={() => setSelectedProfile(null)} className="rounded-full bg-[#f1f4fa] px-2 py-1 text-sm text-[#414754]">Close</button>
+                        </div>
+                        <div className="space-y-4 text-sm text-[#414754]">
+                            <div className="flex items-center gap-4">
+                                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#d8e2ff] text-lg font-bold text-[#005bbf]">
+                                    {(selectedProfile.userId?.full_name || 'T').charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <p className="text-lg font-bold text-[#181c20]">{selectedProfile.userId?.full_name || 'Technician'}</p>
+                                    <p className="text-xs uppercase tracking-wide text-[#005bbf]">{selectedProfile.verificationStatus}</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><strong>Specialization:</strong> {[selectedProfile.primarySpecialization, ...(selectedProfile.specializations || [])].filter(Boolean).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(', ') || 'N/A'}</div>
+                                <div><strong>Experience:</strong> {selectedProfile.yearsOfExperience || 0} years</div>
+                                <div><strong>Service Area:</strong> {selectedProfile.serviceLocation || 'N/A'}</div>
+                                <div><strong>Availability:</strong> {selectedProfile.isAvailable ? 'Available' : 'Unavailable'}</div>
+                            </div>
+                            <div>
+                                <strong>Bio:</strong>
+                                <p className="mt-1">{selectedProfile.bio || 'No bio provided.'}</p>
+                            </div>
+                            <div>
+                                <strong>Certifications:</strong>
+                                <p className="mt-1">{(selectedProfile.certifications || []).join(', ') || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <strong>Qualification Documents:</strong>
+                                <ul className="mt-1 list-disc pl-5">
+                                    {(selectedProfile.qualificationDocuments || []).length > 0 ? selectedProfile.qualificationDocuments.map((doc, index) => (
+                                        <li key={`${doc.name}-${index}`}>
+                                            {doc.url ? <a href={doc.url} target="_blank" rel="noreferrer" className="text-[#005bbf] underline">{doc.name}</a> : doc.name}
+                                        </li>
+                                    )) : <li>No documents uploaded</li>}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="flex-1 flex flex-col md:ml-64 overflow-hidden">
 
@@ -124,8 +190,8 @@ const AssignTechnician = () => {
                                                 onChange={(e) => setSelectedRequest(e.target.value)}>
                                                 <option value="">Choose a request...</option>
                                                 {requests.map(r => (
-                                                    <option key={r.id} value={r.id}>
-                                                        #PM-{r.id} - {r.category} ({r.tenant_name})
+                                                    <option key={r._id} value={r._id}>
+                                                        #PM-{r._id} - {r.category} ({r.tenantId?.full_name || 'Tenant'})
                                                     </option>
                                                 ))}
                                             </select>
@@ -140,9 +206,9 @@ const AssignTechnician = () => {
                                                 value={selectedTechnician}
                                                 onChange={(e) => setSelectedTechnician(e.target.value)}>
                                                 <option value="">Choose a technician...</option>
-                                                {technicians.map(t => (
-                                                    <option key={t.id} value={t.id}>
-                                                        {t.full_name}
+                                                {technicians.map(profile => (
+                                                    <option key={profile.userId._id} value={profile.userId._id}>
+                                                        {profile.userId.full_name}
                                                     </option>
                                                 ))}
                                             </select>
@@ -209,39 +275,49 @@ const AssignTechnician = () => {
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            {technicians.map(tech => (
-                                                <div
-                                                    key={tech.id}
-                                                    className={`border rounded-xl p-4 cursor-pointer transition-all ${selectedTechnician == tech.id ? 'border-[#005bbf] bg-[#f1f4fa]' : 'border-[#c1c6d6] hover:shadow-md'}`}
-                                                    onClick={() => setSelectedTechnician(tech.id)}>
-                                                    <div className="flex items-start justify-between mb-3">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-14 h-14 rounded-full bg-[#d8e2ff] flex items-center justify-center text-[#005bbf] font-bold text-xl">
-                                                                {tech.full_name.charAt(0)}
+                                            {technicians.map(profile => {
+                                                const tech = profile.userId || {};
+                                                const isSelected = selectedTechnician === String(tech._id);
+                                                return (
+                                                    <div
+                                                        key={tech._id}
+                                                        className={`border rounded-xl p-4 cursor-pointer transition-all ${isSelected ? 'border-[#005bbf] bg-[#f1f4fa]' : 'border-[#c1c6d6] hover:shadow-md'}`}
+                                                        onClick={() => setSelectedTechnician(tech._id)}>
+                                                        <div className="flex items-start justify-between mb-3">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-14 h-14 rounded-full bg-[#d8e2ff] flex items-center justify-center text-[#005bbf] font-bold text-xl">
+                                                                    {tech.full_name?.charAt(0) || 'T'}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-bold text-[#181c20]">{tech.full_name}</p>
+                                                                    <span className="text-xs font-semibold text-[#005bbf] bg-[#d8e2ff]/30 px-2 py-0.5 rounded">✓ Verified</span>
+                                                                </div>
                                                             </div>
-                                                            <div>
-                                                                <p className="font-bold text-[#181c20]">{tech.full_name}</p>
-                                                                <span className="text-xs font-semibold text-[#005bbf] bg-[#d8e2ff]/30 px-2 py-0.5 rounded">
-                                                                    Technician
-                                                                </span>
+                                                            <div className={`px-2 py-1 rounded text-xs font-bold uppercase ${profile.isAvailable ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                                {profile.isAvailable ? 'Available' : 'Unavailable'}
                                                             </div>
                                                         </div>
-                                                        <div className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">
-                                                            Available
+                                                        <div className="space-y-2 border-t border-[#c1c6d6] pt-3">
+                                                            <div className="text-sm text-[#414754]">
+                                                                <strong>Specialization:</strong> {[profile.primarySpecialization, ...(profile.specializations || [])].filter(Boolean).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(', ') || 'N/A'}
+                                                            </div>
+                                                            <div className="text-sm text-[#414754]">
+                                                                <strong>Years:</strong> {profile.yearsOfExperience || 0}
+                                                            </div>
+                                                            <div className="text-sm text-[#414754]">
+                                                                <strong>Certs:</strong> {(profile.certifications || []).join(', ') || 'N/A'}
+                                                            </div>
+                                                            <div className="text-sm text-[#414754]">
+                                                                <strong>Avg Rating:</strong> {profile.averageRating || 0}
+                                                            </div>
+                                                            <div className="flex items-center justify-between gap-2 pt-2">
+                                                                <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedProfile(profile); }} className="text-xs font-semibold text-[#005bbf] underline">View Profile</button>
+                                                                <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedTechnician(tech._id); }} className="rounded-lg bg-[#005bbf] px-3 py-1.5 text-xs font-bold text-white">Assign</button>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    <div className="grid grid-cols-2 gap-2 border-t border-[#c1c6d6] pt-3">
-                                                        <div>
-                                                            <p className="text-xs text-[#414754] uppercase">Phone</p>
-                                                            <p className="text-xs font-bold text-[#181c20]">{tech.phone_number || 'N/A'}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xs text-[#414754] uppercase">Email</p>
-                                                            <p className="text-xs font-bold text-[#181c20] truncate">{tech.email}</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>

@@ -27,9 +27,11 @@ const WorkHistory = () => {
       }, [fetchWorkOrders]);
 
       const filteredOrders = workOrders.filter(w => {
+            const workOrderId = w._id || w.id;
+            const category = w.requestId?.category || 'N/A';
             const matchSearch = searchTerm === '' ||
-            `#WO-${w.id}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            w.category?.toLowerCase().includes(searchTerm.toLowerCase());
+            `#WO-${workOrderId}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            category?.toLowerCase().includes(searchTerm.toLowerCase());
             const matchStatus = statusFilter === '' || w.status === statusFilter;
             return matchSearch && matchStatus;
       });
@@ -166,32 +168,38 @@ const WorkHistory = () => {
                                                 </td>
                                                 </tr>
                                           ) : (
-                                                filteredOrders.map(order => (
-                                                <tr key={order.id} className="hover:bg-[#f7f9ff] transition-colors">
-                                                      <td className="px-6 py-4 font-bold text-[#005bbf] text-xs">#WO-{order.id}</td>
-                                                      <td className="px-6 py-4 text-sm capitalize">{order.category}</td>
-                                                      <td className="px-6 py-4 text-sm text-[#414754]">{order.property_name}</td>
-                                                      <td className="px-6 py-4 text-sm text-[#414754]">
-                                                            {new Date(order.scheduled_date).toLocaleDateString()}
-                                                      </td>
-                                                      <td className="px-6 py-4">
-                                                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusBadge(order.status)}`}>
-                                                            {formatStatus(order.status)}
-                                                            </span>
-                                                      </td>
-                                                      <td className="px-6 py-4 text-right">
-                                                            {order.status !== 'completed' ? (
-                                                            <Link
-                                                                  to={`/technician/update-work-order/${order.id}`}
-                                                                  className="text-[#005bbf] text-xs font-bold hover:underline">
-                                                                  Update
-                                                            </Link>
-                                                            ) : (
-                                                            <span className="text-green-600 text-xs font-bold">Done ✓</span>
-                                                            )}
-                                                            </td>
-                                                </tr>
-                                                ))
+                                                filteredOrders.map(order => {
+                                                      const workOrderId = order._id || order.id;
+                                                      const category = order.requestId?.category || 'N/A';
+                                                      const propertyName = order.requestId?.propertyId?.name || 'Unknown Property';
+                                                      const scheduledDate = order.scheduledDate;
+                                                      return (
+                                                            <tr key={workOrderId} className="hover:bg-[#f7f9ff] transition-colors">
+                                                                  <td className="px-6 py-4 font-bold text-[#005bbf] text-xs">#WO-{workOrderId}</td>
+                                                                  <td className="px-6 py-4 text-sm capitalize">{category}</td>
+                                                                  <td className="px-6 py-4 text-sm text-[#414754]">{propertyName}</td>
+                                                                  <td className="px-6 py-4 text-sm text-[#414754]">
+                                                                        {scheduledDate ? new Date(scheduledDate).toLocaleDateString() : 'No deadline'}
+                                                                  </td>
+                                                                  <td className="px-6 py-4">
+                                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusBadge(order.status)}`}>
+                                                                        {formatStatus(order.status)}
+                                                                        </span>
+                                                                  </td>
+                                                                  <td className="px-6 py-4 text-right">
+                                                                        {order.status !== 'completed' ? (
+                                                                        <Link
+                                                                              to={`/technician/update-work-order/${workOrderId}`}
+                                                                              className="text-[#005bbf] text-xs font-bold hover:underline">
+                                                                              Update
+                                                                        </Link>
+                                                                        ) : (
+                                                                        <span className="text-green-600 text-xs font-bold">Done ✓</span>
+                                                                        )}
+                                                                        </td>
+                                                            </tr>
+                                                      );
+                                                })
                                           )}
                                     </tbody>
                                     </table>
