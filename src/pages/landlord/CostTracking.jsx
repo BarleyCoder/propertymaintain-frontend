@@ -5,57 +5,82 @@ import API from '../../utils/axios';
 
 const CostTracking = () => {
     const { user } = useAuth();
-    const [workOrders, setWorkOrders] = useState([]);
+    const [properties, setProperties] = useState([]);
+    const [expenses, setExpenses] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
     const [formData, setFormData] = useState({
+        propertyId: '',
+        category: '',
         material: '',
         quantity: '',
         cost: '',
         description: ''
     });
-    const [expenses, setExpenses] = useState([
-        { id: 1, date: '2024-10-24', material: 'LED Panel 12W x 20', quantity: '20 Units', amount: 85000, status: 'completed' },
-        { id: 2, date: '2024-10-22', material: 'Polyurethane Sealant', quantity: '5 Gallons', amount: 120450, status: 'in_progress' },
-        { id: 3, date: '2024-10-21', material: 'Compressor Spare Parts', quantity: '1 Set', amount: 345000, status: 'pending' },
-        { id: 4, date: '2024-10-19', material: 'PVC Conduit Pipes 20mm', quantity: '50 Pipes', amount: 42500, status: 'completed' },
-    ]);
 
-    const fetchWorkOrders = useCallback(async () => {
+    const fetchData = useCallback(async () => {
         try {
-            const response = await API.get('/api/workorders/landlord');
-            setWorkOrders(response.data.workOrders);
-        } catch (error) {
-            console.error('Error fetching work orders:', error);
+            const [propertiesResponse, costsResponse] = await Promise.all([
+                API.get('/api/properties'),
+                API.get('/api/costs')
+            ]);
+            setProperties(Array.isArray(propertiesResponse.data.properties) ? propertiesResponse.data.properties : []);
+            setExpenses(Array.isArray(costsResponse.data.costs) ? costsResponse.data.costs : []);
+        } catch (err) {
+            console.error('Error fetching landlord cost data:', err);
+            setProperties([]);
+            setExpenses([]);
         } finally {
             setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchWorkOrders();
-    }, [fetchWorkOrders]);
+        fetchData();
+    }, [fetchData]);
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const newExpense = {
-            id: expenses.length + 1,
-            date: new Date().toISOString().split('T')[0],
-            material: formData.material,
-            quantity: formData.quantity,
-            amount: parseFloat(formData.cost),
-            status: 'pending'
-        };
-        setExpenses([newExpense, ...expenses]);
-        setFormData({ material: '', quantity: '', cost: '', description: '' });
+        setError('');
+
+        if (!formData.propertyId || !formData.category || !formData.material || !formData.cost) {
+            setError('Please complete the required expense fields.');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const payload = {
+                propertyId: formData.propertyId,
+                category: formData.category,
+                itemName: formData.material,
+                quantity: formData.quantity,
+                amount: Number(formData.cost),
+                description: formData.description || '',
+                status: 'completed'
+            };
+
+            const response = await API.post('/api/costs', payload);
+            if (response.data?.cost) {
+                setExpenses((prev) => [response.data.cost, ...prev]);
+            }
+            setFormData({ propertyId: '', category: '', material: '', quantity: '', cost: '', description: '' });
+        } catch (err) {
+            console.error('Create cost error:', err);
+            setError(err.response?.data?.message || 'Unable to record this cost.');
+        } finally {
+            setSaving(false);
+        }
     };
 
-    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-    const completedExpenses = expenses.filter(e => e.status === 'completed').reduce((sum, e) => sum + e.amount, 0);
-    const pendingExpenses = expenses.filter(e => e.status === 'pending').reduce((sum, e) => sum + e.amount, 0);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    const completedExpenses = expenses.filter((item) => item.status === 'completed').reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const pendingExpenses = expenses.filter((item) => item.status === 'pending' || item.status === 'in_progress').reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
     const getStatusBadge = (status) => {
         const badges = {
@@ -67,7 +92,7 @@ const CostTracking = () => {
     };
 
     const formatStatus = (status) => {
-        return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+        return String(status || 'completed').replace('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
     };
 
     return (
@@ -75,8 +100,6 @@ const CostTracking = () => {
             <LandlordSidebar />
 
             <div className="flex-1 flex flex-col md:ml-64 overflow-hidden">
-
-                {/* Top Navbar */}
                 <header className="flex justify-between items-center px-6 w-full sticky top-0 z-50 bg-white h-16 border-b border-[#c1c6d6]">
                     <div className="hidden md:flex bg-[#f1f4fa] px-4 py-1 rounded-full border border-[#c1c6d6] items-center gap-2 min-w-[320px]">
                         <span className="material-symbols-outlined text-[#727785]">search</span>
@@ -96,11 +119,8 @@ const CostTracking = () => {
                     </div>
                 </header>
 
-                {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6">
                     <div className="max-w-[1280px] mx-auto space-y-6">
-
-                        {/* Page Header */}
                         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                             <div>
                                 <h1 className="text-3xl font-bold text-[#181c20]">Maintenance Cost Tracking</h1>
@@ -114,7 +134,6 @@ const CostTracking = () => {
                             </div>
                         </div>
 
-                        {/* Summary Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="bg-white p-6 rounded-xl border border-[#c1c6d6] flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-full bg-[#005bbf]/10 flex items-center justify-center text-[#005bbf]">
@@ -123,7 +142,7 @@ const CostTracking = () => {
                                 <div>
                                     <p className="text-xs font-semibold text-[#414754] uppercase tracking-wider">Total Expenses</p>
                                     <p className="text-xl font-bold text-[#181c20]">₦ {totalExpenses.toLocaleString()}</p>
-                                    <p className="text-xs text-green-600 font-bold">This Month</p>
+                                    <p className="text-xs text-green-600 font-bold">Current total</p>
                                 </div>
                             </div>
                             <div className="bg-white p-6 rounded-xl border border-[#c1c6d6] flex items-center gap-4">
@@ -153,10 +172,7 @@ const CostTracking = () => {
                             </div>
                         </div>
 
-                        {/* Form and Chart */}
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-                            {/* Spending Chart */}
                             <div className="lg:col-span-8 bg-white p-6 rounded-xl border border-[#c1c6d6] shadow-sm">
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-lg font-bold text-[#181c20]">Monthly Spending Trends</h3>
@@ -165,33 +181,72 @@ const CostTracking = () => {
                                         <option>Year to Date</option>
                                     </select>
                                 </div>
-                                <div className="flex items-end justify-between gap-4 h-48 pb-4">
-                                    {[
-                                        { month: 'Mar', height: '40%', amount: '₦450k' },
-                                        { month: 'Apr', height: '60%', amount: '₦680k' },
-                                        { month: 'May', height: '45%', amount: '₦520k' },
-                                        { month: 'Jun', height: '85%', amount: '₦890k' },
-                                        { month: 'Jul', height: '55%', amount: '₦710k' },
-                                        { month: 'Aug', height: '75%', amount: '₦950k' },
-                                    ].map((bar, index) => (
-                                        <div key={index} className="flex-1 flex flex-col items-center gap-2 group">
-                                            <div
-                                                className="w-full bg-[#005bbf]/20 rounded-t-lg hover:bg-[#005bbf]/40 transition-all relative"
-                                                style={{ height: bar.height }}>
-                                                <span className="hidden group-hover:block absolute -top-6 left-1/2 -translate-x-1/2 bg-[#181c20] text-white text-[10px] px-2 py-1 rounded whitespace-nowrap">
-                                                    {bar.amount}
-                                                </span>
-                                            </div>
-                                            <span className="text-xs text-[#414754]">{bar.month}</span>
-                                        </div>
-                                    ))}
-                                </div>
+                                {loading ? (
+                                    <div className="flex items-center justify-center h-48 text-sm text-[#414754]">Loading maintenance costs...</div>
+                                ) : expenses.length === 0 ? (
+                                    <div className="flex items-center justify-center h-48 border border-dashed border-[#c1c6d6] rounded-lg text-sm text-[#414754] bg-[#f7f9ff]">
+                                        No cost records yet.
+                                    </div>
+                                ) : (
+                                    <div className="flex items-end justify-between gap-4 h-48 pb-4">
+                                        {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month, index) => {
+                                            const value = expenses
+                                                .filter((item) => new Date(item.createdAt || Date.now()).getMonth() === index)
+                                                .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+                                            const height = `${Math.min(100, Math.max(8, (value / Math.max(totalExpenses, 1)) * 100))}%`;
+                                            return (
+                                                <div key={index} className="flex-1 flex flex-col items-center gap-2 group">
+                                                    <div
+                                                        className="w-full bg-[#005bbf]/20 rounded-t-lg hover:bg-[#005bbf]/40 transition-all relative"
+                                                        style={{ height }}>
+                                                        <span className="hidden group-hover:block absolute -top-6 left-1/2 -translate-x-1/2 bg-[#181c20] text-white text-[10px] px-2 py-1 rounded whitespace-nowrap">
+                                                            ₦{Math.round(value).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-xs text-[#414754]">{month}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Log Expense Form */}
                             <div className="lg:col-span-4 bg-white p-6 rounded-xl border border-[#c1c6d6] shadow-sm">
                                 <h3 className="text-lg font-bold text-[#181c20] mb-6">Log New Expense</h3>
                                 <form onSubmit={handleSubmit} className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-semibold text-[#414754] uppercase mb-1 block">Property</label>
+                                        <select
+                                            className="w-full px-4 py-3 rounded-lg border border-[#c1c6d6] text-sm focus:ring-2 focus:ring-[#005bbf]/20 focus:border-[#005bbf] outline-none"
+                                            name="propertyId"
+                                            value={formData.propertyId}
+                                            onChange={handleChange}
+                                            required
+                                        >
+                                            <option value="">Select property</option>
+                                            {properties.map((property) => (
+                                                <option key={property._id} value={property._id}>{property.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-[#414754] uppercase mb-1 block">Category</label>
+                                        <select
+                                            className="w-full px-4 py-3 rounded-lg border border-[#c1c6d6] text-sm focus:ring-2 focus:ring-[#005bbf]/20 focus:border-[#005bbf] outline-none"
+                                            name="category"
+                                            value={formData.category}
+                                            onChange={handleChange}
+                                            required
+                                        >
+                                            <option value="">Select category</option>
+                                            <option value="plumbing">Plumbing</option>
+                                            <option value="electrical">Electrical</option>
+                                            <option value="carpentry">Carpentry</option>
+                                            <option value="roofing">Roofing</option>
+                                            <option value="painting">Painting</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
                                     <div>
                                         <label className="text-xs font-semibold text-[#414754] uppercase mb-1 block">Material Used</label>
                                         <input
@@ -211,7 +266,6 @@ const CostTracking = () => {
                                                 className="w-full px-4 py-3 rounded-lg border border-[#c1c6d6] text-sm focus:ring-2 focus:ring-[#005bbf]/20 focus:border-[#005bbf] outline-none"
                                                 name="quantity"
                                                 placeholder="0"
-                                                required
                                                 type="text"
                                                 value={formData.quantity}
                                                 onChange={handleChange}
@@ -225,6 +279,7 @@ const CostTracking = () => {
                                                 placeholder="0.00"
                                                 required
                                                 type="number"
+                                                min="0"
                                                 value={formData.cost}
                                                 onChange={handleChange}
                                             />
@@ -238,63 +293,59 @@ const CostTracking = () => {
                                             placeholder="Reference work order or location details..."
                                             rows="3"
                                             value={formData.description}
-                                            onChange={handleChange}>
-                                        </textarea>
+                                            onChange={handleChange}
+                                        />
                                     </div>
+                                    {error && <p className="text-xs text-red-600">{error}</p>}
                                     <button
-                                        className="w-full py-3 bg-[#005bbf] text-white font-bold rounded-lg hover:bg-[#004493] transition-all flex items-center justify-center gap-2"
-                                        type="submit">
+                                        className="w-full py-3 bg-[#005bbf] text-white font-bold rounded-lg hover:bg-[#004493] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                                        type="submit"
+                                        disabled={saving}
+                                    >
                                         <span className="material-symbols-outlined text-sm">add_circle</span>
-                                        Add Expense
+                                        {saving ? 'Saving...' : 'Add Expense'}
                                     </button>
                                 </form>
                             </div>
                         </div>
 
-                        {/* Expense History Table */}
                         <div className="bg-white rounded-xl border border-[#c1c6d6] overflow-hidden shadow-sm">
                             <div className="px-6 py-4 border-b border-[#c1c6d6] flex justify-between items-center">
                                 <h3 className="text-lg font-bold text-[#181c20]">Expense History</h3>
-                                <div className="flex gap-2">
-                                    <button className="p-2 rounded hover:bg-[#f1f4fa]">
-                                        <span className="material-symbols-outlined text-[#414754]">filter_list</span>
-                                    </button>
-                                </div>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead className="bg-[#f1f4fa] border-b border-[#c1c6d6]">
                                         <tr>
                                             <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Date</th>
-                                            <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Materials</th>
+                                            <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Material</th>
+                                            <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Property</th>
                                             <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Quantity</th>
                                             <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Amount</th>
                                             <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase">Status</th>
-                                            <th className="px-6 py-4 text-xs font-semibold text-[#414754] uppercase text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-[#c1c6d6]">
-                                        {expenses.map(expense => (
-                                            <tr key={expense.id} className="hover:bg-[#f7f9ff] transition-colors group">
-                                                <td className="px-6 py-4 text-sm text-[#414754]">{expense.date}</td>
-                                                <td className="px-6 py-4">
-                                                    <p className="text-sm font-bold text-[#181c20]">{expense.material}</p>
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-[#414754]">{expense.quantity}</td>
-                                                <td className="px-6 py-4 text-sm font-bold text-[#181c20]">₦ {expense.amount.toLocaleString()}</td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusBadge(expense.status)}`}>
-                                                        {formatStatus(expense.status)}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button className="text-[#005bbf] text-xs font-bold hover:underline">View</button>
-                                                        <button className="text-[#414754] text-xs font-bold hover:underline">Edit</button>
-                                                    </div>
-                                                </td>
+                                        {expenses.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="6" className="px-6 py-8 text-center text-[#414754]">No cost records yet.</td>
                                             </tr>
-                                        ))}
+                                        ) : (
+                                            expenses.map((expense) => (
+                                                <tr key={expense._id || expense.id} className="hover:bg-[#f7f9ff] transition-colors">
+                                                    <td className="px-6 py-4 text-sm text-[#414754]">{new Date(expense.createdAt || Date.now()).toLocaleDateString()}</td>
+                                                    <td className="px-6 py-4 text-sm text-[#181c20] font-bold">{expense.itemName || 'Maintenance Cost'}</td>
+                                                    <td className="px-6 py-4 text-sm text-[#414754]">{expense.propertyId?.name || 'Property'}</td>
+                                                    <td className="px-6 py-4 text-sm text-[#414754]">{expense.quantity || '—'}</td>
+                                                    <td className="px-6 py-4 text-sm font-bold text-[#181c20]">₦ {Number(expense.amount || 0).toLocaleString()}</td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusBadge(expense.status)}`}>
+                                                            {formatStatus(expense.status || 'completed')}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
                                     </tbody>
                                 </table>
                             </div>

