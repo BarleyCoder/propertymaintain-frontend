@@ -265,7 +265,7 @@ const SubmitRequest = () => {
                                             required
                                             className="w-full bg-[#f1f4fa] border border-[#c1c6d6] rounded-lg px-4 py-3 text-base appearance-none focus:border-[#005bbf] outline-none cursor-pointer text-[#181c20]">
                                             <option value="">Select priority...</option>
-                                            <option value="urgent">Urgent (1-24 hours)</option>
+                                            <option value="emergency">Urgent (1-24 hours)</option>
                                             <option value="high">High (3-5 days)</option>
                                             <option value="normal">Normal (1-2 weeks)</option>
                                             <option value="low">Low (No deadline)</option>

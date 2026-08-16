@@ -8,8 +8,17 @@ const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     const syncUser = useCallback((userData, userToken) => {
+        const nextToken = userToken ?? localStorage.getItem('token') ?? token;
+
         setUser(userData);
-        setToken(userToken || token);
+        setToken(nextToken ?? null);
+
+        if (nextToken) {
+            localStorage.setItem('token', nextToken);
+        } else {
+            localStorage.removeItem('token');
+        }
+
         if (userData) {
             localStorage.setItem('user', JSON.stringify(userData));
         } else {
@@ -38,8 +47,21 @@ const AuthProvider = ({ children }) => {
 
             if (!savedToken) {
                 setUser(null);
+                setToken(null);
                 setLoading(false);
                 return;
+            }
+
+            setToken(savedToken);
+
+            if (savedUser) {
+                try {
+                    const parsedUser = JSON.parse(savedUser);
+                    setUser(parsedUser);
+                } catch (error) {
+                    console.error('Saved user JSON is invalid:', error);
+                    localStorage.removeItem('user');
+                }
             }
 
             try {
