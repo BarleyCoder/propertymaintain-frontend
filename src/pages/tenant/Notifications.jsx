@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import useAuth from '../../context/useAuth';
 import TenantSidebar from '../../components/Sidebar';
 import API from '../../utils/axios';
+import { triggerDataRefresh, useDataRefresh } from '../../utils/dataRefresh';
 
 const Notifications = () => {
       const { user } = useAuth();
@@ -23,9 +24,14 @@ const Notifications = () => {
             fetchNotifications();
       }, [fetchNotifications]);
 
+      useDataRefresh(() => {
+            fetchNotifications();
+      }, 'tenant');
+
       const markAsRead = async (id) => {
             try {
                   await API.put(`/api/notifications/${id}/read`);
+                  triggerDataRefresh('tenant');
                   fetchNotifications();
             } catch (error) {
                   console.error('Error marking notification as read:', error);
@@ -35,6 +41,7 @@ const Notifications = () => {
       const markAllAsRead = async () => {
             try {
                   await API.put('/api/notifications/read-all');
+                  triggerDataRefresh('tenant');
                   fetchNotifications();
             } catch (error) {
                   console.error('Error marking all as read:', error);
@@ -44,6 +51,7 @@ const Notifications = () => {
       const deleteNotification = async (id) => {
             try {
                   await API.delete(`/api/notifications/${id}`);
+                  triggerDataRefresh('tenant');
                   fetchNotifications();
             } catch (error) {
                   console.error('Error deleting notification:', error);

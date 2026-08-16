@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import useAuth from '../../context/useAuth';
 import LandlordSidebar from '../../components/LandlordSidebar';
 import API from '../../utils/axios';
+import { triggerDataRefresh, useDataRefresh } from '../../utils/dataRefresh';
 
 const CostTracking = () => {
     const { user } = useAuth();
@@ -40,6 +41,10 @@ const CostTracking = () => {
         fetchData();
     }, [fetchData]);
 
+    useDataRefresh(() => {
+        fetchData();
+    }, 'landlord');
+
     const handleChange = (e) => {
         setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     };
@@ -69,6 +74,7 @@ const CostTracking = () => {
             if (response.data?.cost) {
                 setExpenses((prev) => [response.data.cost, ...prev]);
             }
+            triggerDataRefresh('landlord');
             setFormData({ propertyId: '', category: '', material: '', quantity: '', cost: '', description: '' });
         } catch (err) {
             console.error('Create cost error:', err);

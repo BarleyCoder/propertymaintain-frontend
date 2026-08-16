@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import useAuth from '../../context/useAuth';
 import TechnicianSidebar from '../../components/TechnicianSidebar';
 import API from '../../utils/axios';
+import { useDataRefresh } from '../../utils/dataRefresh';
 
 const WorkHistory = () => {
       const { user } = useAuth();
@@ -25,6 +26,10 @@ const WorkHistory = () => {
       useEffect(() => {
             fetchWorkOrders();
       }, [fetchWorkOrders]);
+
+      useDataRefresh(() => {
+            fetchWorkOrders();
+      }, 'technician');
 
       const filteredOrders = workOrders.filter(w => {
             const workOrderId = w._id || w.id;

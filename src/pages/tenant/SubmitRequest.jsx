@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import useAuth from '../../context/useAuth';
 import TenantSidebar from '../../components/Sidebar';
 import API from '../../utils/axios';
+import { triggerDataRefresh, useDataRefresh } from '../../utils/dataRefresh';
 
 const SubmitRequest = () => {
     const { user } = useAuth();
@@ -41,6 +42,10 @@ const SubmitRequest = () => {
     useEffect(() => {
         fetchProperties();
     }, [fetchProperties]);
+
+    useDataRefresh(() => {
+        fetchProperties();
+    }, 'tenant');
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -110,6 +115,7 @@ const SubmitRequest = () => {
             setFormData({ property_id: properties[0]?._id || '', category: '', priority: '', description: '' });
             setSelectedImage(null);
             setImagePreview(null);
+            triggerDataRefresh('tenant');
         } catch (err) {
             const status = err.response?.status;
             if (status === 401) setError('You must be logged in to submit a request.');

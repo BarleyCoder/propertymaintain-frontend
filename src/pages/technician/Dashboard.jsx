@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import useAuth from '../../context/useAuth';
 import TechnicianSidebar from '../../components/TechnicianSidebar';
 import API from '../../utils/axios';
+import { useDataRefresh } from '../../utils/dataRefresh';
 
 const TechnicianDashboard = () => {
     const { user } = useAuth();
@@ -23,6 +24,10 @@ const TechnicianDashboard = () => {
     useEffect(() => {
         fetchWorkOrders();
     }, [fetchWorkOrders]);
+
+    useDataRefresh(() => {
+        fetchWorkOrders();
+    }, 'technician');
 
     const stats = {
         assigned: workOrders.length,

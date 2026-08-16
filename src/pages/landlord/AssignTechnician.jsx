@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import useAuth from '../../context/useAuth';
 import LandlordSidebar from '../../components/LandlordSidebar';
 import API from '../../utils/axios';
+import { triggerDataRefresh, useDataRefresh } from '../../utils/dataRefresh';
 
 const AssignTechnician = () => {
     const { user } = useAuth();
@@ -34,6 +35,10 @@ const AssignTechnician = () => {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    useDataRefresh(() => {
+        fetchData();
+    }, 'landlord');
 
     // Fetch technicians for selected request when request changes
     useEffect(() => {
@@ -72,6 +77,7 @@ const AssignTechnician = () => {
             setSelectedTechnician('');
             setScheduledDate('');
             setNotes('');
+            triggerDataRefresh('landlord');
             fetchData();
         } catch (err) {
             const status = err.response?.status;

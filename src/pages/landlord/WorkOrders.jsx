@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import useAuth from '../../context/useAuth';
 import LandlordSidebar from '../../components/LandlordSidebar';
 import API from '../../utils/axios';
+import { useDataRefresh } from '../../utils/dataRefresh';
 
 const WorkOrders = () => {
     const { user } = useAuth();
@@ -44,6 +45,10 @@ const WorkOrders = () => {
     useEffect(() => {
         fetchWorkOrders();
     }, [fetchWorkOrders]);
+
+    useDataRefresh(() => {
+        fetchWorkOrders();
+    }, 'landlord');
 
     // Auto-refresh every 30 seconds to show technician updates without logout
     useEffect(() => {

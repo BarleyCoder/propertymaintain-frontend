@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useAuth from '../../context/useAuth';
 import TechnicianSidebar from '../../components/TechnicianSidebar';
 import API from '../../utils/axios';
+import { triggerDataRefresh, useDataRefresh } from '../../utils/dataRefresh';
 
 const UpdateWorkOrder = () => {
     const { user } = useAuth();
@@ -55,6 +56,10 @@ const UpdateWorkOrder = () => {
         fetchWorkOrder();
     }, [fetchWorkOrder]);
 
+    useDataRefresh(() => {
+        fetchWorkOrder();
+    }, 'technician');
+
     const handleStartWork = async () => {
         setActionLoading(true);
         setError('');
@@ -63,6 +68,7 @@ const UpdateWorkOrder = () => {
         try {
             await API.patch(`/api/workorders/${id}/start`);
             setSuccess('Work started. Status updated to In Progress.');
+            triggerDataRefresh('technician');
             await fetchWorkOrder();
         } catch (err) {
             setError(err.response?.data?.message || 'Unable to start work. Please try again.');
@@ -88,6 +94,8 @@ const UpdateWorkOrder = () => {
                 proofImageUrl: completionData.proofImageUrl.trim() || ''
             });
             setSuccess('Work completed successfully. The landlord has been notified.');
+            triggerDataRefresh('technician');
+            triggerDataRefresh('landlord');
             await fetchWorkOrder();
         } catch (err) {
             setError(err.response?.data?.message || 'Unable to complete work. Please try again.');
@@ -113,6 +121,8 @@ const UpdateWorkOrder = () => {
                 notes: unableData.notes.trim() || ''
             });
             setSuccess('Status updated. The landlord has been notified.');
+            triggerDataRefresh('technician');
+            triggerDataRefresh('landlord');
             await fetchWorkOrder();
         } catch (err) {
             setError(err.response?.data?.message || 'Unable to update status. Please try again.');
@@ -152,6 +162,8 @@ const UpdateWorkOrder = () => {
             });
             
             setCompletionEvidence([...completionEvidence, res.data.evidence]);
+            triggerDataRefresh('technician');
+            triggerDataRefresh('landlord');
             setSuccess('Evidence uploaded successfully');
             setTimeout(() => setSuccess(''), 2000);
         } catch (err) {

@@ -3,6 +3,7 @@ import useAuth from '../../context/useAuth';
 import LandlordSidebar from '../../components/LandlordSidebar';
 import StatusMessage from '../../components/StatusMessage';
 import API from '../../utils/axios';
+import { triggerDataRefresh, useDataRefresh } from '../../utils/dataRefresh';
 
 const LandlordRequests = () => {
     const { user } = useAuth();
@@ -67,10 +68,16 @@ const LandlordRequests = () => {
         };
     }, [fetchRequests, fetchJoinRequests]);
 
+    useDataRefresh(() => {
+        fetchRequests();
+        fetchJoinRequests();
+    }, 'landlord');
+
     const handleUpdateStatus = async (id, status) => {
         setUpdating(true);
         try {
             await API.put(`/api/maintenance/${id}/status`, { status });
+            triggerDataRefresh('landlord');
             fetchRequests();
             setSelectedRequest(null);
         } catch (error) {
@@ -85,6 +92,7 @@ const LandlordRequests = () => {
         try {
             const response = await API.put(`/api/properties/join/${id}/status`, { status: nextStatus });
             setJoinFeedback({ type: 'success', text: response.data.message || `Join request ${nextStatus} successfully.` });
+            triggerDataRefresh('landlord');
             await fetchJoinRequests();
         } catch (error) {
             setJoinFeedback({ type: 'error', text: error.response?.data?.message || 'Unable to update join request.' });

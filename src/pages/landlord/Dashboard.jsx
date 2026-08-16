@@ -4,6 +4,7 @@ import useAuth from '../../context/useAuth';
 import LandlordSidebar from '../../components/LandlordSidebar';
 import StatusMessage from '../../components/StatusMessage';
 import API from '../../utils/axios';
+import { triggerDataRefresh, useDataRefresh } from '../../utils/dataRefresh';
 
 const LandlordDashboard = () => {
     const { user } = useAuth();
@@ -89,6 +90,7 @@ const LandlordDashboard = () => {
                 postal_code: ''
             });
             await fetchProperties();
+            triggerDataRefresh('landlord');
         } catch (err) {
             setAddPropertyError(err.response?.data?.message || 'Failed to create property.');
             setCreatedPropertyCode('');
@@ -108,6 +110,12 @@ const LandlordDashboard = () => {
         loadData();
         return () => { active = false; };
     }, [fetchRequests, fetchProperties, fetchJoinRequests]);
+
+    useDataRefresh(() => {
+        fetchRequests();
+        fetchProperties();
+        fetchJoinRequests();
+    }, 'landlord');
 
     const stats = {
         total: requests.length,
@@ -146,6 +154,7 @@ const LandlordDashboard = () => {
         try {
             const response = await API.put(`/api/properties/join/${id}/status`, { status: nextStatus });
             setStatusMessage({ type: 'success', text: response.data.message || `Join request ${nextStatus} successfully.` });
+            triggerDataRefresh('landlord');
             await fetchJoinRequests();
         } catch (err) {
             setStatusMessage({ type: 'error', text: err.response?.data?.message || 'Unable to update join request.' });

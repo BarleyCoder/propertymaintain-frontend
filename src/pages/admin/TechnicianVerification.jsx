@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import useAuth from '../../context/useAuth';
 import API from '../../utils/axios';
 import AdminSidebar from '../../components/AdminSidebar';
+import { triggerDataRefresh, useDataRefresh } from '../../utils/dataRefresh';
 
 const TechnicianVerification = () => {
     const { user } = useAuth();
@@ -27,6 +28,10 @@ const TechnicianVerification = () => {
         fetchPending();
     }, [fetchPending]);
 
+    useDataRefresh(() => {
+        fetchPending();
+    }, 'admin');
+
     const handleOutcome = async (technicianId, action) => {
         const note = (notesMap[technicianId] || '').trim();
         setProcessingId(technicianId);
@@ -44,6 +49,7 @@ const TechnicianVerification = () => {
             await API.put(endpoint, { verificationNotes: note || (action === 'approve' ? 'Approved by admin.' : 'Rejected by admin.') });
             setSuccess(action === 'approve' ? 'Technician approved successfully.' : 'Technician rejected successfully.');
             setNotesMap((prev) => ({ ...prev, [technicianId]: '' }));
+            triggerDataRefresh('admin');
             await fetchPending();
         } catch (err) {
             setError(err.response?.data?.message || 'Unable to update technician verification status.');

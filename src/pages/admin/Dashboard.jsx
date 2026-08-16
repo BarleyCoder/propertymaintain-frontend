@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import useAuth from '../../context/useAuth';
 import API from '../../utils/axios';
 import AdminSidebar from '../../components/AdminSidebar';
+import { useDataRefresh } from '../../utils/dataRefresh';
 
 const AdminDashboard = () => {
     const { user } = useAuth();
@@ -41,6 +42,24 @@ const AdminDashboard = () => {
 
         loadDashboard();
     }, []);
+
+    useDataRefresh(() => {
+        const loadDashboard = async () => {
+            try {
+                const [statsRes, activityRes] = await Promise.all([
+                    API.get('/api/admin/stats'),
+                    API.get('/api/admin/activity')
+                ]);
+
+                setStats(statsRes.data.stats || {});
+                setActivity(activityRes.data.activity || []);
+            } catch (err) {
+                setError(err.response?.data?.message || 'Unable to load dashboard data.');
+            }
+        };
+
+        loadDashboard();
+    }, 'admin');
 
     const cards = [
         { label: 'Total Users', value: stats.totalUsers, tone: 'bg-[#d8e2ff] text-[#005bbf]' },

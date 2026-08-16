@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import useAuth from '../../context/useAuth';
 import LandlordSidebar from '../../components/LandlordSidebar';
 import API from '../../utils/axios';
+import { useDataRefresh } from '../../utils/dataRefresh';
 
 const Reports = () => {
     const { user } = useAuth();
@@ -29,6 +30,10 @@ const Reports = () => {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    useDataRefresh(() => {
+        fetchData();
+    }, 'landlord');
 
     const stats = {
         total: requests.length,

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import useAuth from '../../context/useAuth';
 import TenantSidebar from '../../components/Sidebar';
 import API from '../../utils/axios';
+import { useDataRefresh } from '../../utils/dataRefresh';
 
 const MyRequests = () => {
     const { user } = useAuth();
@@ -28,6 +29,10 @@ const MyRequests = () => {
     useEffect(() => {
         fetchRequests();
     }, [fetchRequests]);
+
+    useDataRefresh(() => {
+        fetchRequests();
+    }, 'tenant');
 
     const filteredRequests = allRequests.filter(r => {
         const matchSearch = searchTerm === '' ||

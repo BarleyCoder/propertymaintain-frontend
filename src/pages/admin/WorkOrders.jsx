@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminSidebar from '../../components/AdminSidebar';
 import useAuth from '../../context/useAuth';
 import API from '../../utils/axios';
+import { useDataRefresh } from '../../utils/dataRefresh';
 
 const filterOptions = [
     { label: 'All', value: 'all' },
@@ -55,6 +56,23 @@ const AdminWorkOrders = () => {
 
         fetchWorkOrders();
     }, []);
+
+    useDataRefresh(() => {
+        const fetchWorkOrders = async () => {
+            try {
+                setLoading(true);
+                setError('');
+                const res = await API.get('/api/admin/work-orders');
+                setWorkOrders(res.data.workOrders || []);
+            } catch (err) {
+                setError(err.response?.data?.message || 'Unable to load work orders.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchWorkOrders();
+    }, 'admin');
 
     const visibleWorkOrders = useMemo(() => {
         if (filter === 'all') return workOrders;

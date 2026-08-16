@@ -52,8 +52,8 @@ const TenantSidebar = () => {
                     <span className="text-xs font-semibold uppercase">Notifications</span>
                 </Link>
                 <Link
-                    className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer ${isActive('/tenant/profile') ? 'bg-[#4d8efe] text-white font-bold' : 'text-[#414754] hover:bg-[#dfe3e8]/50'}`}
-                    to="profile">
+                    className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer ${isActive('/profile') ? 'bg-[#4d8efe] text-white font-bold' : 'text-[#414754] hover:bg-[#dfe3e8]/50'}`}
+                    to="/profile">
                     <span className="material-symbols-outlined">person</span>
                     <span className="text-xs font-semibold uppercase">Profile</span>
                 </Link>

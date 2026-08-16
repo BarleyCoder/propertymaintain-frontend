@@ -4,6 +4,7 @@ import useAuth from '../../context/useAuth';
 import TenantSidebar from '../../components/Sidebar';
 import StatusMessage from '../../components/StatusMessage';
 import API from '../../utils/axios';
+import { triggerDataRefresh, useDataRefresh } from '../../utils/dataRefresh';
 
 const TenantDashboard = () => {
     const { user } = useAuth();
@@ -48,6 +49,11 @@ const TenantDashboard = () => {
         loadData();
         return () => { active = false; };
     }, [fetchRequests, fetchJoinRequests]);
+
+    useDataRefresh(() => {
+        fetchRequests();
+        fetchJoinRequests();
+    }, 'tenant');
 
     const getStatusBadge = (status) => {
         const badges = {
@@ -173,6 +179,7 @@ const TenantDashboard = () => {
                                             await API.post('/api/properties/join', { property_code: code.toUpperCase() });
                                             setStatusMessage({ type: 'success', text: 'Join request sent successfully. Waiting for landlord approval.' });
                                             setPropertyCode('');
+                                            triggerDataRefresh('tenant');
                                             fetchRequests();
                                             fetchJoinRequests();
                                         } catch (err) {
