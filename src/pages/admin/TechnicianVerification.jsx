@@ -49,6 +49,7 @@ const TechnicianVerification = () => {
             await API.put(endpoint, { verificationNotes: note || (action === 'approve' ? 'Approved by admin.' : 'Rejected by admin.') });
             setSuccess(action === 'approve' ? 'Technician approved successfully.' : 'Technician rejected successfully.');
             setNotesMap((prev) => ({ ...prev, [technicianId]: '' }));
+            triggerDataRefresh('technician');
             triggerDataRefresh('admin');
             await fetchPending();
         } catch (err) {

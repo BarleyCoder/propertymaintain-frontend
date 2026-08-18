@@ -78,7 +78,7 @@ const AdminProperties = () => {
                                             <th className="px-4 py-3 font-semibold uppercase tracking-wide text-[#414754]">Name</th>
                                             <th className="px-4 py-3 font-semibold uppercase tracking-wide text-[#414754]">Code</th>
                                             <th className="px-4 py-3 font-semibold uppercase tracking-wide text-[#414754]">Landlord</th>
-                                            <th className="px-4 py-3 font-semibold uppercase tracking-wide text-[#414754]">Tenant</th>
+                                            <th className="px-4 py-3 font-semibold uppercase tracking-wide text-[#414754]">Tenants</th>
                                             <th className="px-4 py-3 font-semibold uppercase tracking-wide text-[#414754]">Address</th>
                                             <th className="px-4 py-3 font-semibold uppercase tracking-wide text-[#414754]">State</th>
                                             <th className="px-4 py-3 font-semibold uppercase tracking-wide text-[#414754]">Type</th>
@@ -92,7 +92,11 @@ const AdminProperties = () => {
                                                 <td className="px-4 py-3 font-medium">{item.name || 'N/A'}</td>
                                                 <td className="px-4 py-3 font-semibold text-[#005bbf]">{item.propertyCode || 'N/A'}</td>
                                                 <td className="px-4 py-3">{item.landlordId?.full_name || item.landlordId?.email || 'N/A'}</td>
-                                                <td className="px-4 py-3">{item.tenantId?.full_name || item.tenantId?.email || 'Unassigned'}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#e3f2fd] text-[#005bbf] font-semibold text-sm">
+                                                        {item.tenantCount ?? 0}
+                                                    </span>
+                                                </td>
                                                 <td className="px-4 py-3">
                                                     {item.address || 'N/A'}
                                                     {item.city ? `, ${item.city}` : ''}

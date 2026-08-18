@@ -24,6 +24,7 @@ import WorkOrders from './pages/landlord/WorkOrders';
 import CostTracking from './pages/landlord/CostTracking';
 import Reports from './pages/landlord/Reports';
 import Technicians from './pages/landlord/Technicians';
+import LandlordTenants from './pages/landlord/Tenants';
 
 // Technician Pages
 import TechnicianDashboard from './pages/technician/Dashboard';
@@ -138,6 +139,11 @@ function App() {
                     <Route path="/landlord/technicians" element={
                         <ProtectedRoute allowedRoles={['landlord', 'admin']}>
                             <Technicians />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/landlord/tenants" element={
+                        <ProtectedRoute allowedRoles={['landlord', 'admin']}>
+                            <LandlordTenants />
                         </ProtectedRoute>
                     } />
                     <Route path="/technician/work-history" element={

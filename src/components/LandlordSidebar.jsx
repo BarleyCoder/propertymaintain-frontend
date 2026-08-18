@@ -73,6 +73,12 @@ const LandlordSidebar = () => {
                     <span className="material-symbols-outlined">engineering</span>
                     <span className="text-xs font-semibold uppercase">Technicians</span>
                 </Link>
+                <Link
+                    className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer ${isActive('/landlord/tenants') ? 'bg-[#4d8efe] text-white font-bold' : 'text-[#414754] hover:bg-[#dfe3e8]/50'}`}
+                    to="/landlord/tenants">
+                    <span className="material-symbols-outlined">group</span>
+                    <span className="text-xs font-semibold uppercase">Approved Tenants</span>
+                </Link>
             </nav>
 
             <div className="mt-auto border-t border-[#c1c6d6] pt-4">

@@ -11,11 +11,6 @@ const Login = () => {
     const [error, setError] = useState('');
     const [infoMessage, setInfoMessage] = useState('');
     const [loading, setLoading] = useState(false);
-    const [googleLoading, setGoogleLoading] = useState(false);
-    const [googleMessage, setGoogleMessage] = useState({ type: 'info', text: '' });
-    const [pendingGoogleCredential, setPendingGoogleCredential] = useState('');
-    const [pendingRoleSelection, setPendingRoleSelection] = useState(false);
-    const [selectedGoogleRole, setSelectedGoogleRole] = useState('');
 
     const { login } = useAuth();
     const navigate = useNavigate();
@@ -63,156 +58,8 @@ const Login = () => {
     };
 
     useEffect(() => {
-        if (window.google?.accounts?.id) {
-            window.google.accounts.id.initialize({
-                client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-                callback: async (response) => {
-                    if (!response.credential) {
-                        setGoogleMessage({ type: 'error', text: 'Google sign-in was cancelled.' });
-                        return;
-                    }
-
-                    setGoogleLoading(true);
-                    setGoogleMessage({ type: 'info', text: 'Finishing Google sign-in...' });
-                    try {
-                        const result = await API.post('/api/auth/google', { credential: response.credential });
-                        if (result.data.requiresRoleSelection) {
-                            setPendingGoogleCredential(response.credential);
-                            setSelectedGoogleRole('');
-                            setPendingRoleSelection(true);
-                            setGoogleMessage({ type: 'info', text: result.data.message || 'Please choose how you will use Property Maintenance.' });
-                            return;
-                        }
-                        handleSuccessfulAuth(result.data.user, result.data.token);
-                    } catch (err) {
-                        if (err.response?.data?.requiresRoleSelection) {
-                            setPendingGoogleCredential(response.credential);
-                            setSelectedGoogleRole('');
-                            setPendingRoleSelection(true);
-                            setGoogleMessage({ type: 'info', text: err.response.data.message || 'Please choose how you will use Property Maintenance.' });
-                            return;
-                        }
-                        setGoogleMessage({ type: 'error', text: err.response?.data?.message || 'Google sign-in failed. Please try again.' });
-                    } finally {
-                        setGoogleLoading(false);
-                    }
-                }
-            });
-
-            const container = document.getElementById('google-login-button');
-            if (container) {
-                window.google.accounts.id.renderButton(container, {
-                    theme: 'outline',
-                    size: 'large',
-                    text: 'continue_with',
-                    shape: 'pill'
-                });
-            }
-            return;
-        }
-
-        const script = document.createElement('script');
-        script.src = 'https://accounts.google.com/gsi/client';
-        script.async = true;
-        script.defer = true;
-        script.onload = () => {
-            if (window.google?.accounts?.id) {
-                window.google.accounts.id.initialize({
-                    client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-                    callback: async (response) => {
-                        if (!response.credential) {
-                            setGoogleMessage({ type: 'error', text: 'Google sign-in was cancelled.' });
-                            return;
-                        }
-
-                        setGoogleLoading(true);
-                        setGoogleMessage({ type: 'info', text: 'Finishing Google sign-in...' });
-                        try {
-                            const result = await API.post('/api/auth/google', { credential: response.credential });
-                            if (result.data.requiresRoleSelection) {
-                                setPendingGoogleCredential(response.credential);
-                                setSelectedGoogleRole('');
-                                setPendingRoleSelection(true);
-                                setGoogleMessage({ type: 'info', text: result.data.message || 'Please choose how you will use Property Maintenance.' });
-                                return;
-                            }
-                            handleSuccessfulAuth(result.data.user, result.data.token);
-                        } catch (err) {
-                            if (err.response?.data?.requiresRoleSelection) {
-                                setPendingGoogleCredential(response.credential);
-                                setSelectedGoogleRole('');
-                                setPendingRoleSelection(true);
-                                setGoogleMessage({ type: 'info', text: err.response.data.message || 'Please choose how you will use Property Maintenance.' });
-                                return;
-                            }
-                            setGoogleMessage({ type: 'error', text: err.response?.data?.message || 'Google sign-in failed. Please try again.' });
-                        } finally {
-                            setGoogleLoading(false);
-                        }
-                    }
-                });
-
-                const container = document.getElementById('google-login-button');
-                if (container) {
-                    window.google.accounts.id.renderButton(container, {
-                        theme: 'outline',
-                        size: 'large',
-                        text: 'continue_with',
-                        shape: 'pill'
-                    });
-                }
-            }
-        };
-        document.head.appendChild(script);
-    }, [handleSuccessfulAuth]);
-
-    const continueWithGoogle = async () => {
-        if (!window.google?.accounts?.id) {
-            setGoogleMessage({ type: 'error', text: 'Google authentication is not available right now.' });
-            return;
-        }
-
-        if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-            setGoogleMessage({ type: 'error', text: 'Google authentication is not configured yet.' });
-            return;
-        }
-
-        window.google.accounts.id.prompt();
-    };
-
-    const submitGoogleRole = async () => {
-        if (!pendingGoogleCredential || !selectedGoogleRole) {
-            setGoogleMessage({ type: 'error', text: 'Please select a role to continue.' });
-            return;
-        }
-
-        setGoogleLoading(true);
-        try {
-            const result = await API.post('/api/auth/google', {
-                credential: pendingGoogleCredential,
-                role: selectedGoogleRole
-            });
-            if (result.data.requiresRoleSelection) {
-                setGoogleMessage({ type: 'error', text: 'Please choose a role to continue.' });
-                return;
-            }
-            setPendingRoleSelection(false);
-            setPendingGoogleCredential('');
-            setSelectedGoogleRole('');
-            handleSuccessfulAuth(result.data.user, result.data.token);
-        } catch (err) {
-            setGoogleMessage({ type: 'error', text: err.response?.data?.message || 'Unable to finish Google sign-in.' });
-        } finally {
-            setGoogleLoading(false);
-        }
-    };
-
-    const cancelGoogleRoleSelection = () => {
-        setPendingRoleSelection(false);
-        setPendingGoogleCredential('');
-        setSelectedGoogleRole('');
-        setGoogleMessage({ type: 'info', text: 'Google sign-in cancelled.' });
-    };
+        // Cleanup any remaining Google OAuth resources if needed
+    }, []);
 
     return (
         <div className="bg-[#f7f9ff] min-h-screen flex items-center justify-center">
@@ -233,7 +80,6 @@ const Login = () => {
                             <p className="text-[#414754]">Please enter your credentials to access your account.</p>
                         </div>
 
-                        {/* Error Message */}
                         {error && (
                             <div className="bg-red-100 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
                                 {error}
@@ -242,76 +88,6 @@ const Login = () => {
                         {infoMessage && (
                             <div className="bg-blue-50 text-blue-800 px-4 py-3 rounded-lg mb-4 text-sm border border-blue-200">
                                 {infoMessage}
-                            </div>
-                        )}
-                        {googleMessage.text && (
-                            <div className="mb-4">
-                                <StatusMessage type={googleMessage.type} message={googleMessage.text} onClose={() => setGoogleMessage({ type: 'info', text: '' })} />
-                            </div>
-                        )}
-
-                        <div className="mb-4">
-                            <button
-                                type="button"
-                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#c1c6d6] bg-white px-4 py-3 text-sm font-semibold text-[#414754] shadow-sm transition hover:bg-[#f1f4fa]"
-                                onClick={continueWithGoogle}
-                                disabled={googleLoading}
-                            >
-                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#005bbf] text-xs font-bold text-white">G</span>
-                                {googleLoading ? 'Connecting...' : 'Continue with Google'}
-                            </button>
-                            <div id="google-login-button" className="mt-3 flex justify-center"></div>
-                        </div>
-
-                        {pendingRoleSelection && (
-                            <div className="mb-4 rounded-xl border border-[#c1c6d6] bg-[#f7f9ff] p-4">
-                                <p className="text-sm font-semibold text-[#181c20]">How would you like to use Property Maintenance?</p>
-                                <div className="mt-4 space-y-3">
-                                    {[
-                                        {
-                                            value: 'tenant',
-                                            title: '🏠 Tenant',
-                                            description: 'Submit maintenance requests and manage your property access.'
-                                        },
-                                        {
-                                            value: 'landlord',
-                                            title: '🏢 Landlord',
-                                            description: 'Manage properties, tenants, maintenance requests and technicians.'
-                                        },
-                                        {
-                                            value: 'technician',
-                                            title: '🔧 Technician',
-                                            description: 'Receive maintenance jobs and manage work orders.'
-                                        }
-                                    ].map((option) => (
-                                        <button
-                                            key={option.value}
-                                            type="button"
-                                            className={`w-full rounded-lg border p-3 text-left transition ${selectedGoogleRole === option.value ? 'border-[#005bbf] bg-[#dfeeff]' : 'border-[#c1c6d6] bg-white text-[#181c20]'}`}
-                                            onClick={() => setSelectedGoogleRole(option.value)}
-                                        >
-                                            <div className="text-sm font-bold">{option.title}</div>
-                                            <div className="mt-1 text-xs text-[#414754]">{option.description}</div>
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className="mt-4 flex justify-end gap-3">
-                                    <button
-                                        type="button"
-                                        className="rounded-lg border border-[#c1c6d6] bg-white px-4 py-2 text-sm font-semibold text-[#414754]"
-                                        onClick={cancelGoogleRoleSelection}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="rounded-lg bg-[#005bbf] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                                        onClick={submitGoogleRole}
-                                        disabled={googleLoading || !selectedGoogleRole}
-                                    >
-                                        Continue
-                                    </button>
-                                </div>
                             </div>
                         )}
 

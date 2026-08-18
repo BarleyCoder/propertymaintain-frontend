@@ -105,7 +105,7 @@ const Technicians = () => {
 
                                             <div className="space-y-2 border-t border-[#c1c6d6] pt-4">
                                                 <div className="text-sm text-[#414754]">
-                                                    <strong>Specializations:</strong> {(entry.specializations || []).join(', ') || 'N/A'}
+                                                    <strong>Specializations:</strong> {[entry.primarySpecialization, ...(entry.specializations || [])].filter(Boolean).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(', ') || 'N/A'}
                                                 </div>
                                                 <div className="text-sm text-[#414754]">
                                                     <strong>Years Experience:</strong> {entry.yearsOfExperience || 0}

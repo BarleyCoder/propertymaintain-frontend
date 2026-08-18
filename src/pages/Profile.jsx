@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../context/useAuth';
 import API from '../utils/axios';
+import { triggerDataRefresh } from '../utils/dataRefresh';
 
 const Profile = () => {
     const { user, refreshUser } = useAuth();
@@ -82,6 +83,10 @@ const Profile = () => {
                     isEmailVerified: updatedProfile.isEmailVerified ?? user?.isEmailVerified
                 }, localStorage.getItem('token'));
             }
+            // Trigger appropriate refresh based on user role
+            if (user?.role) {
+                triggerDataRefresh(user.role);
+            }
         } catch (err) {
             console.error('Update profile error:', err);
             setError(err.response?.data?.message || 'Unable to update your profile.');
@@ -96,8 +101,6 @@ const Profile = () => {
         if (user?.role === 'technician') return '/technician/dashboard';
         return '/login';
     };
-
-    const propertyInfo = Array.isArray(profile?.properties) && profile.properties.length > 0 ? profile.properties[0] : null;
 
     return (
         <div className="min-h-screen bg-[#f7f9ff] p-6">
@@ -209,17 +212,64 @@ const Profile = () => {
                                     <p className="text-xs text-[#727785] mt-1">Role cannot be edited.</p>
                                 </div>
 
-                                <div className="rounded-xl bg-[#f7f9ff] border border-[#c1c6d6] p-4 space-y-2">
-                                    <h4 className="text-sm font-bold uppercase tracking-wide text-[#414754]">Property Information</h4>
-                                    {propertyInfo ? (
-                                        <>
-                                            <p><span className="font-semibold">Property:</span> {propertyInfo.name || 'Not provided'}</p>
-                                            <p><span className="font-semibold">Address:</span> {propertyInfo.address || 'Not provided'}</p>
-                                            <p><span className="font-semibold">Location:</span> {propertyInfo.city || 'Not provided'}{propertyInfo.state ? `, ${propertyInfo.state}` : ''}</p>
-                                            <p><span className="font-semibold">Property Code:</span> {propertyInfo.propertyCode || 'Not provided'}</p>
-                                        </>
+                                <div className="rounded-xl bg-[#f7f9ff] border border-[#c1c6d6] p-4 space-y-4">
+                                    <h4 className="text-sm font-bold uppercase tracking-wide text-[#414754]">Resident Information</h4>
+                                    {Array.isArray(profile?.properties) && profile.properties.length > 0 ? (
+                                        <div className="space-y-6">
+                                            {profile.properties.map((property, index) => (
+                                                <div key={property.id || index} className="border-t border-[#c1c6d6] pt-4 first:border-t-0 first:pt-0 space-y-3 text-sm">
+                                                    {/* Property Details */}
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <p className="text-xs font-semibold text-[#727785] uppercase mb-1">Property Name</p>
+                                                            <p className="text-[#414754]">{property.name || 'Not provided'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-semibold text-[#727785] uppercase mb-1">Property Type</p>
+                                                            <p className="text-[#414754] capitalize">{property.propertyType || 'Not provided'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-semibold text-[#727785] uppercase mb-1">Address</p>
+                                                            <p className="text-[#414754]">{property.address || 'Not provided'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-semibold text-[#727785] uppercase mb-1">Location</p>
+                                                            <p className="text-[#414754]">{property.city || 'Not provided'}{property.state ? `, ${property.state}` : ''}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-semibold text-[#727785] uppercase mb-1">Property Code</p>
+                                                            <p className="text-[#414754] font-mono">{property.propertyCode || 'Not provided'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-semibold text-[#727785] uppercase mb-1">Bedrooms / Bathrooms</p>
+                                                            <p className="text-[#414754]">{property.bedrooms || 0} bed / {property.bathrooms || 0} bath</p>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Residency & Landlord Info */}
+                                                    <div className="border-t border-[#c1c6d6] pt-3 mt-3 grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <p className="text-xs font-semibold text-[#727785] uppercase mb-1">Approval Date</p>
+                                                            <p className="text-[#414754]">{property.approvedAt ? new Date(property.approvedAt).toLocaleDateString() : 'Not available'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-semibold text-[#727785] uppercase mb-1">Status</p>
+                                                            <p className="text-[#414754] capitalize">{property.residenceStatus || 'Unknown'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-semibold text-[#727785] uppercase mb-1">Landlord</p>
+                                                            <p className="text-[#414754]">{property.landlordName || 'Not provided'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-semibold text-[#727785] uppercase mb-1">Landlord Email</p>
+                                                            <p className="text-[#414754] text-xs break-all">{property.landlordEmail || 'Not provided'}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     ) : (
-                                        <p className="text-[#414754]">No approved property assigned yet.</p>
+                                        <p className="text-[#414754]">No approved properties assigned yet.</p>
                                     )}
                                 </div>
 

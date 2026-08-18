@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import useAuth from '../../context/useAuth';
 import TechnicianSidebar from '../../components/TechnicianSidebar';
 import API from '../../utils/axios';
+import { triggerDataRefresh, useDataRefresh } from '../../utils/dataRefresh';
 
 const specializationsList = ['plumbing', 'electrical', 'carpentry', 'roofing', 'painting', 'hvac', 'masonry', 'appliance_repair', 'other'];
 
@@ -48,37 +49,42 @@ const TechnicianProfileSetup = () => {
 
     const completionPercentage = Math.round((requiredChecks.filter(Boolean).length / requiredChecks.length) * 100);
 
-    useEffect(() => {
-        const fetchProfile = async () => {
-            setLoading(true);
-            try {
-                const res = await API.get('/api/technician/profile');
-                const profile = res.data.profile;
-                setPrimarySpecialization(profile.primarySpecialization || '');
-                setSpecializations(profile.specializations || []);
-                setYearsOfExperience(profile.yearsOfExperience || '');
-                setCertifications((profile.certifications || []).join(', '));
-                setBio(profile.bio || '');
-                setServiceLocation(profile.serviceLocation || '');
-                setServiceRadius(profile.serviceRadius || '');
-                setPreferredWorkingHours(profile.preferredWorkingHours || '');
-                setEmergencyAfterHours(Boolean(profile.emergencyAfterHours));
-                setPhoneNumber(profile.phoneNumber || user?.phone_number || '');
-                setProfilePhoto(profile.profilePhoto || '');
-                setQualifications(profile.qualificationDocuments || []);
-                setVerificationStatus(profile.verificationStatus || 'draft');
-                setVerificationNotes(profile.verificationNotes || '');
-                setIsAvailable(profile.isAvailable !== undefined ? profile.isAvailable : true);
-            } catch (err) {
-                if (err.response?.status && err.response.status !== 404) {
-                    setError('Error fetching profile');
-                }
-            } finally {
-                setLoading(false);
+    const fetchProfile = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await API.get('/api/technician/profile');
+            const profile = res.data.profile;
+            setPrimarySpecialization(profile.primarySpecialization || '');
+            setSpecializations(profile.specializations || []);
+            setYearsOfExperience(profile.yearsOfExperience || '');
+            setCertifications((profile.certifications || []).join(', '));
+            setBio(profile.bio || '');
+            setServiceLocation(profile.serviceLocation || '');
+            setServiceRadius(profile.serviceRadius || '');
+            setPreferredWorkingHours(profile.preferredWorkingHours || '');
+            setEmergencyAfterHours(Boolean(profile.emergencyAfterHours));
+            setPhoneNumber(profile.phoneNumber || user?.phone_number || '');
+            setProfilePhoto(profile.profilePhoto || '');
+            setQualifications(profile.qualificationDocuments || []);
+            setVerificationStatus(profile.verificationStatus || 'draft');
+            setVerificationNotes(profile.verificationNotes || '');
+            setIsAvailable(profile.isAvailable !== undefined ? profile.isAvailable : true);
+        } catch (err) {
+            if (err.response?.status && err.response.status !== 404) {
+                setError('Error fetching profile');
             }
-        };
-        fetchProfile();
+        } finally {
+            setLoading(false);
+        }
     }, [user?.phone_number]);
+
+    useEffect(() => {
+        fetchProfile();
+    }, [fetchProfile]);
+
+    useDataRefresh(() => {
+        fetchProfile();
+    }, 'technician');
 
     const toggleSpecialization = (spec) => {
         setSpecializations(prev => prev.includes(spec) ? prev.filter(s => s !== spec) : [...prev, spec]);
@@ -113,6 +119,7 @@ const TechnicianProfileSetup = () => {
             
             setProfilePhoto(res.data.profilePhoto);
             setSuccess('Profile photo uploaded successfully');
+            triggerDataRefresh('technician');
             setTimeout(() => setSuccess(''), 3000);
         } catch (err) {
             setError(err.response?.data?.message || 'Error uploading profile photo');
@@ -154,6 +161,7 @@ const TechnicianProfileSetup = () => {
             
             setQualifications(res.data.profile.qualificationDocuments || []);
             setSuccess('Qualification document uploaded successfully');
+            triggerDataRefresh('technician');
             setTimeout(() => setSuccess(''), 3000);
         } catch (err) {
             setError(err.response?.data?.message || 'Error uploading qualification document');
@@ -185,6 +193,7 @@ const TechnicianProfileSetup = () => {
             };
             await API.put('/api/technician/profile', payload);
             setSuccess('Profile saved successfully.');
+            triggerDataRefresh('technician');
             const refreshed = await API.get('/api/technician/profile');
             const profile = refreshed.data.profile;
             setVerificationStatus(profile.verificationStatus || 'draft');
@@ -208,6 +217,7 @@ const TechnicianProfileSetup = () => {
             setVerificationStatus(res.data.profile?.verificationStatus || 'pending');
             setVerificationNotes(res.data.profile?.verificationNotes || '');
             setSuccess('Profile submitted for verification successfully.');
+            triggerDataRefresh('technician');
         } catch (err) {
             setError(err.response?.data?.message || 'Please complete your technician profile before submitting it for verification.');
         } finally {
