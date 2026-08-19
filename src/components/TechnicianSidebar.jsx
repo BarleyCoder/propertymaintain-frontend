@@ -33,7 +33,7 @@ const TechnicianSidebar = () => {
                     <span className="text-xs font-semibold uppercase">Dashboard</span>
                 </Link>
                 <Link
-                    className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer ${(isActive('/technician/dashboard') || isActive('/technician/work-orders')) ? 'bg-[#4d8efe] text-white font-bold' : 'text-[#414754] hover:bg-[#dfe3e8]/50'}`}
+                    className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer ${isActive('/technician/work-orders') ? 'bg-[#4d8efe] text-white font-bold' : 'text-[#414754] hover:bg-[#dfe3e8]/50'}`}
                     to="/technician/work-orders">
                     <span className="material-symbols-outlined">assignment</span>
                     <span className="text-xs font-semibold uppercase">Assigned Tasks</span>
