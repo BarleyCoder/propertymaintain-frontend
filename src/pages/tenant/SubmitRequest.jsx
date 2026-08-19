@@ -116,6 +116,7 @@ const SubmitRequest = () => {
             setSelectedImage(null);
             setImagePreview(null);
             triggerDataRefresh('tenant');
+            triggerDataRefresh('landlord');
         } catch (err) {
             const status = err.response?.status;
             if (status === 401) setError('You must be logged in to submit a request.');

@@ -78,6 +78,7 @@ const LandlordRequests = () => {
         try {
             await API.put(`/api/maintenance/${id}/status`, { status });
             triggerDataRefresh('landlord');
+            triggerDataRefresh('tenant');
             fetchRequests();
             setSelectedRequest(null);
         } catch (error) {
@@ -93,6 +94,7 @@ const LandlordRequests = () => {
             const response = await API.put(`/api/properties/join/${id}/status`, { status: nextStatus });
             setJoinFeedback({ type: 'success', text: response.data.message || `Join request ${nextStatus} successfully.` });
             triggerDataRefresh('landlord');
+            triggerDataRefresh('tenant');
             await fetchJoinRequests();
         } catch (error) {
             setJoinFeedback({ type: 'error', text: error.response?.data?.message || 'Unable to update join request.' });

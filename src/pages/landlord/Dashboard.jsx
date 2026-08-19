@@ -155,6 +155,7 @@ const LandlordDashboard = () => {
             const response = await API.put(`/api/properties/join/${id}/status`, { status: nextStatus });
             setStatusMessage({ type: 'success', text: response.data.message || `Join request ${nextStatus} successfully.` });
             triggerDataRefresh('landlord');
+            triggerDataRefresh('tenant');
             await fetchJoinRequests();
         } catch (err) {
             setStatusMessage({ type: 'error', text: err.response?.data?.message || 'Unable to update join request.' });
